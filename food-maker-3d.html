@@ -1,0 +1,287 @@
+<title>Pancake Bot 3000</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Nunito:wght@400;700&display=swap">
+<style>
+  :root{
+    --ground:#DCEBF7; --panel:#FFFFFF; --ink:#2B2D42; --ink-soft:#5C617A;
+    --butter:#FFD449; --tomato:#E4572E; --mint:#7FD1AE; --sky:#6FA8DC; --line:#C9D8E8;
+    --display:'Fredoka','Arial Rounded MT Bold',Arial,sans-serif;
+    --body:'Nunito','Segoe UI',Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;padding-block:16px;padding-inline:16px}
+  .wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+  header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px 16px}
+  h1{font-family:var(--display);font-weight:700;font-size:clamp(28px,5vw,44px);margin:0;line-height:1.05;text-wrap:balance}
+  h1 span{color:var(--tomato)}
+  .sub{margin:0;color:var(--ink-soft);font-size:15px}
+  .stage-row{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px}
+  @media (max-width:760px){.stage-row{grid-template-columns:1fr}}
+  .stage{position:relative;background:linear-gradient(#EAF3FB,#CFE2F3);border:3px solid var(--ink);border-radius:18px;overflow:hidden;aspect-ratio:4/3;max-width:100%}
+  .stage canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+  .hint{position:absolute;left:12px;bottom:10px;font-size:13px;color:var(--ink-soft);background:rgba(255,255,255,.8);padding:3px 9px;border-radius:999px}
+  .controls{position:absolute;right:12px;top:12px;display:flex;gap:8px}
+  button{font-family:var(--display);font-weight:700;font-size:16px;border:3px solid var(--ink);border-radius:999px;padding:8px 16px;cursor:pointer;background:var(--butter);color:var(--ink);box-shadow:0 3px 0 var(--ink);transition:transform .1s}
+  button:hover{transform:translateY(-1px)}
+  button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+  button:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
+  #make{background:var(--tomato);color:#fff}
+  #spin{background:#fff}
+  .panel{background:var(--panel);border:3px solid var(--ink);border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+  .panel h2{font-family:var(--display);font-size:20px;margin:0}
+  .panel p{margin:0;font-size:14px;color:var(--ink-soft)}
+  ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+  li{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start;padding:8px 10px;border-radius:12px;border:2px solid transparent;cursor:pointer}
+  li:hover{background:#F2F7FC}
+  li.on{border-color:var(--ink);background:#FFF7D6}
+  .num{font-family:var(--display);font-weight:700;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:15px}
+  li b{font-family:var(--display);font-weight:500;font-size:16px;display:block}
+  li small{color:var(--ink-soft);font-size:13px}
+  .status{font-family:var(--display);font-size:17px;min-height:1.5em;color:var(--tomato)}
+  .facts{background:var(--panel);border:3px solid var(--ink);border-radius:18px;padding:14px 18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 24px;font-size:15px}
+  .facts b{font-family:var(--display);font-weight:500}
+  @media (prefers-reduced-motion:reduce){button{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Pancake Bot <span>3000</span></h1>
+    <p class="sub">An automatic food maker. Drag to spin it around. Click a part to see what it does.</p>
+  </header>
+
+  <div class="stage-row">
+    <div class="stage">
+      <canvas id="c" aria-label="3-D model of the Pancake Bot 3000 food maker"></canvas>
+      <div class="controls">
+        <button id="spin" type="button">Auto-spin</button>
+        <button id="make" type="button">Make a pancake!</button>
+      </div>
+      <div class="hint">Drag = rotate · Scroll = zoom</div>
+    </div>
+
+    <aside class="panel">
+      <h2>How the food travels</h2>
+      <p>The numbers show the order, from the top of the machine to the plate.</p>
+      <ol id="parts">
+        <li data-part="hopper"><span class="num" style="background:#E4572E">1</span><div><b>Ingredient hoppers</b><small>Flour, milk and eggs wait in three funnels.</small></div></li>
+        <li data-part="mixer"><span class="num" style="background:#F2A541">2</span><div><b>Mixing bowl</b><small>A spinning paddle stirs everything into batter.</small></div></li>
+        <li data-part="griddle"><span class="num" style="background:#7FD1AE">3</span><div><b>Hot griddle</b><small>Batter pours out and cooks. Orange glow = hot!</small></div></li>
+        <li data-part="flipper"><span class="num" style="background:#6FA8DC">4</span><div><b>Flipper arm</b><small>A robot spatula flips the pancake over.</small></div></li>
+        <li data-part="belt"><span class="num" style="background:#9B7BD4">5</span><div><b>Conveyor belt</b><small>Carries the finished pancake to the plate.</small></div></li>
+        <li data-part="brain"><span class="num" style="background:#2B2D42">6</span><div><b>Control panel</b><small>The computer "brain" that runs each step.</small></div></li>
+      </ol>
+      <div class="status" id="status"></div>
+    </aside>
+  </div>
+
+  <div class="facts">
+    <div><b>Height:</b> about 1 meter (as tall as a 4th grader's shoulder)</div>
+    <div><b>Power:</b> plugs into a wall outlet, like a toaster</div>
+    <div><b>Pancakes per minute:</b> 2</div>
+    <div><b>Safety:</b> hot parts are behind the clear window; the red button stops everything</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  'use strict';
+  var canvas=document.getElementById('c');
+  var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.shadowMap.enabled=true;
+  var scene=new THREE.Scene();
+  var camera=new THREE.PerspectiveCamera(40,4/3,0.1,100);
+
+  // ---- lights
+  scene.add(new THREE.HemisphereLight(0xffffff,0x9db4c8,0.9));
+  var sun=new THREE.DirectionalLight(0xffffff,0.9);
+  sun.position.set(4,8,5); sun.castShadow=true;
+  sun.shadow.mapSize.set(1024,1024);
+  scene.add(sun);
+
+  // ---- materials (flat, toy-like)
+  function mat(c,opt){return new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:0.7,metalness:0.05},opt||{}));}
+  var M={
+    butter:mat(0xFFD449), ink:mat(0x2B2D42), tomato:mat(0xE4572E), mint:mat(0x7FD1AE),
+    sky:mat(0x6FA8DC), steel:mat(0xB8C4D0,{metalness:0.5,roughness:0.35}),
+    glass:mat(0xBFE3FF,{transparent:true,opacity:0.35}),
+    batter:mat(0xF5E2B8), pancake:mat(0xD9913D), orange:mat(0xF2A541),
+    plate:mat(0xFFFFFF), floor:mat(0xC9D8E8)
+  };
+
+  var parts={}; // name -> array of meshes for highlight
+  function reg(name,mesh){(parts[name]=parts[name]||[]).push(mesh);mesh.castShadow=true;mesh.receiveShadow=true;return mesh;}
+  function box(w,h,d,m){return new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);}
+  function cyl(rt,rb,h,m,seg){return new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg||32),m);}
+
+  var root=new THREE.Group(); scene.add(root);
+
+  // floor
+  var floor=new THREE.Mesh(new THREE.CircleGeometry(4,48),M.floor);
+  floor.rotation.x=-Math.PI/2; floor.receiveShadow=true; root.add(floor);
+
+  // ---- body / cabinet
+  var body=box(3,1.6,1.6,M.butter); body.position.set(-0.4,0.8,0); root.add(reg('body',body));
+  for(var i=0;i<4;i++){ var f=cyl(0.1,0.1,0.15,M.ink); f.position.set(-0.4+(i%2?1.3:-1.3),0.07,i<2?0.65:-0.65); root.add(f);}
+
+  // ---- 6. control panel (brain)
+  var brain=box(0.9,0.6,0.08,M.ink); brain.position.set(-1.35,1.05,0.82); root.add(reg('brain',brain));
+  var screen=box(0.6,0.3,0.03,M.mint); screen.position.set(-1.4,1.15,0.87); root.add(reg('brain',screen));
+  var bigBtn=cyl(0.1,0.1,0.06,M.tomato); bigBtn.rotation.x=Math.PI/2; bigBtn.position.set(-1.1,0.9,0.87); root.add(reg('brain',bigBtn));
+  var goBtn=cyl(0.07,0.07,0.06,M.mint); goBtn.rotation.x=Math.PI/2; goBtn.position.set(-1.6,0.9,0.87); root.add(reg('brain',goBtn));
+
+  // ---- 1. hoppers (three funnels on top)
+  var hopperColors=[M.plate,M.sky,M.orange]; // flour, milk, eggs
+  var hoppers=[];
+  for(i=0;i<3;i++){
+    var g=new THREE.Group();
+    var funnel=cyl(0.32,0.08,0.5,M.steel); funnel.position.y=0.25; g.add(reg('hopper',funnel));
+    var lid=cyl(0.34,0.34,0.06,hopperColors[i]); lid.position.y=0.53; g.add(reg('hopper',lid));
+    var tube=cyl(0.06,0.06,0.5,M.steel); tube.position.y=-0.25; g.add(reg('hopper',tube));
+    g.position.set(-1.3+i*0.55,2.15,-0.2); root.add(g); hoppers.push(g);
+  }
+  var shelf=box(2,0.08,0.9,M.ink); shelf.position.set(-0.75,1.64,-0.2); root.add(reg('body',shelf));
+
+  // ---- 2. mixing bowl with paddle (inside a glass window)
+  var bowl=cyl(0.5,0.35,0.6,M.steel); bowl.position.set(-0.75,1.32,-0.2); root.add(reg('mixer',bowl));
+  var batterLvl=cyl(0.45,0.45,0.05,M.batter); batterLvl.position.set(-0.75,1.45,-0.2); root.add(reg('mixer',batterLvl));
+  var paddle=new THREE.Group();
+  var shaft=cyl(0.04,0.04,0.7,M.ink); paddle.add(reg('mixer',shaft));
+  var blade=box(0.55,0.06,0.08,M.tomato); blade.position.y=-0.3; paddle.add(reg('mixer',blade));
+  paddle.position.set(-0.75,1.5,-0.2); root.add(paddle);
+  var win=box(1.3,0.9,0.05,M.glass); win.position.set(-0.75,1.2,0.6); root.add(win);
+  // cutout in front of bowl: raise body top so bowl shows -- fake it with frame
+  var frame=box(1.35,0.95,0.04,M.ink); frame.position.set(-0.75,1.2,0.58); frame.material=M.ink;
+  frame.geometry=new THREE.RingGeometry(0.62,0.7,48); frame.rotation.z=0; root.add(frame);
+
+  // ---- 3. griddle (hot plate)
+  var griddle=cyl(0.55,0.55,0.12,M.ink); griddle.position.set(1.1,1.66,-0.1); root.add(reg('griddle',griddle));
+  var heat=new THREE.Mesh(new THREE.CircleGeometry(0.5,48),new THREE.MeshStandardMaterial({color:0xE4572E,emissive:0xE4572E,emissiveIntensity:0}));
+  heat.rotation.x=-Math.PI/2; heat.position.set(1.1,1.725,-0.1); root.add(reg('griddle',heat));
+  var spout=cyl(0.05,0.05,0.5,M.steel); spout.rotation.z=Math.PI/2; spout.position.set(0.1,1.9,-0.2); root.add(reg('mixer',spout));
+  var spout2=cyl(0.05,0.05,0.35,M.steel); spout2.position.set(0.35,1.75,-0.2); root.add(reg('mixer',spout2));
+
+  // ---- 4. flipper arm
+  var arm=new THREE.Group();
+  var post=cyl(0.06,0.06,0.7,M.steel); post.position.y=0.35; arm.add(reg('flipper',post));
+  var wrist=new THREE.Group(); wrist.position.y=0.7;
+  var beam=box(0.8,0.06,0.06,M.sky); beam.position.x=-0.4; wrist.add(reg('flipper',beam));
+  var spat=box(0.35,0.03,0.3,M.steel); spat.position.set(-0.85,0,0); wrist.add(reg('flipper',spat));
+  arm.add(wrist); arm.position.set(1.85,1.6,-0.1); root.add(arm);
+
+  // ---- 5. conveyor belt
+  var belt=box(2.2,0.18,0.7,M.mint); belt.position.set(1.9,0.95,0.55); root.add(reg('belt',belt));
+  var beltFrame=box(2.3,0.1,0.8,M.ink); beltFrame.position.set(1.9,0.82,0.55); root.add(reg('belt',beltFrame));
+  var rollers=[];
+  for(i=0;i<2;i++){ var r=cyl(0.14,0.14,0.75,M.ink); r.rotation.x=Math.PI/2; r.position.set(0.85+i*2.1,0.95,0.55); root.add(reg('belt',r)); rollers.push(r);}
+  var stripes=[];
+  for(i=0;i<6;i++){ var s=box(0.08,0.02,0.7,M.ink); s.position.set(0.9+i*0.36,1.05,0.55); root.add(reg('belt',s)); stripes.push(s);}
+  var legA=box(0.1,0.85,0.1,M.ink); legA.position.set(2.9,0.42,0.3); root.add(reg('belt',legA));
+  var legB=box(0.1,0.85,0.1,M.ink); legB.position.set(2.9,0.42,0.8); root.add(reg('belt',legB));
+  var ramp=box(0.6,0.05,0.6,M.steel); ramp.position.set(1.55,1.45,0.2); ramp.rotation.z=0.9; ramp.rotation.y=-0.4; root.add(reg('belt',ramp));
+
+  // plate at the end
+  var plate=cyl(0.42,0.36,0.05,M.plate); plate.position.set(3.4,0.55,0.55); root.add(plate);
+  var stool=cyl(0.3,0.3,0.5,M.sky); stool.position.set(3.4,0.27,0.55); root.add(stool);
+
+  // ---- animated things
+  var drops=[];
+  for(i=0;i<3;i++){ var d=new THREE.Mesh(new THREE.SphereGeometry(0.08,16,16),hopperColors[i]); d.visible=false; root.add(d); drops.push(d);}
+  var pancake=cyl(0.3,0.3,0.06,M.pancake); pancake.visible=false; root.add(pancake);
+  var stream=cyl(0.04,0.04,0.4,M.batter); stream.visible=false; stream.position.set(0.35,1.75,-0.2); root.add(stream);
+  var stack=[]; // finished pancakes on plate
+
+  root.position.set(-0.9,0,0);
+
+  // ---- camera orbit (drag / wheel / touch)
+  var theta=0.55, phi=1.05, dist=8.2, target=new THREE.Vector3(0.1,1.1,0);
+  var autoSpin=true, dragging=false, lx=0, ly=0, pinch=0;
+  function place(){
+    camera.position.set(target.x+dist*Math.sin(phi)*Math.sin(theta), target.y+dist*Math.cos(phi), target.z+dist*Math.sin(phi)*Math.cos(theta));
+    camera.lookAt(target);
+  }
+  canvas.addEventListener('pointerdown',function(e){dragging=true;lx=e.clientX;ly=e.clientY;canvas.setPointerCapture(e.pointerId);canvas.style.cursor='grabbing';});
+  canvas.addEventListener('pointermove',function(e){ if(!dragging)return; theta-=(e.clientX-lx)*0.008; phi=Math.min(1.5,Math.max(0.3,phi+(e.clientY-ly)*0.006)); lx=e.clientX; ly=e.clientY; });
+  function up(){dragging=false;canvas.style.cursor='grab';}
+  canvas.addEventListener('pointerup',up); canvas.addEventListener('pointercancel',up);
+  canvas.addEventListener('wheel',function(e){e.preventDefault(); dist=Math.min(14,Math.max(4,dist+e.deltaY*0.006));},{passive:false});
+  canvas.addEventListener('touchmove',function(e){ if(e.touches.length===2){ var dx=e.touches[0].clientX-e.touches[1].clientX, dy=e.touches[0].clientY-e.touches[1].clientY, d=Math.hypot(dx,dy); if(pinch)dist=Math.min(14,Math.max(4,dist-(d-pinch)*0.02)); pinch=d; } },{passive:true});
+  canvas.addEventListener('touchend',function(){pinch=0;});
+
+  // ---- resize
+  function resize(){ var w=canvas.clientWidth,h=canvas.clientHeight; if(canvas.width!==w||canvas.height!==h){renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();} }
+
+  // ---- part highlight
+  var highlighted=null, pulse=0;
+  var partsList=document.getElementById('parts');
+  var status=document.getElementById('status');
+  function highlight(name){
+    if(highlighted){parts[highlighted].forEach(function(m){m.material.emissive&&m.material.emissive.setHex(m.userData.em||0);});}
+    highlighted=name;
+    Array.prototype.forEach.call(partsList.children,function(li){li.classList.toggle('on',li.dataset.part===name);});
+  }
+  partsList.addEventListener('click',function(e){ var li=e.target.closest('li'); if(!li)return; highlight(li.dataset.part===highlighted?null:li.dataset.part); });
+  // give highlighted meshes their own material clones so glow doesn't leak
+  Object.keys(parts).forEach(function(k){parts[k].forEach(function(m){m.material=m.material.clone();m.userData.em=m.material.emissive?m.material.emissive.getHex():0;});});
+
+  // ---- the cooking sequence
+  var seq=null; // {t, stage}
+  var STAGES=[
+    {n:'hopper',  d:1.6, msg:'1. Dropping flour, milk and eggs...'},
+    {n:'mixer',   d:2.0, msg:'2. Mixing the batter!'},
+    {n:'griddle', d:2.4, msg:'3. Pouring and cooking on the hot griddle...'},
+    {n:'flipper', d:1.4, msg:'4. Flip!'},
+    {n:'belt',    d:2.2, msg:'5. Riding the belt to the plate...'},
+    {n:'brain',   d:1.2, msg:'6. Done! The brain says: pancake ready.'}
+  ];
+  var makeBtn=document.getElementById('make');
+  makeBtn.addEventListener('click',function(){ if(seq)return; seq={i:0,t:0}; pancake.visible=false; makeBtn.disabled=true; });
+  document.getElementById('spin').addEventListener('click',function(){autoSpin=!autoSpin;this.textContent=autoSpin?'Auto-spin':'Spin: off';});
+
+  var clock=new THREE.Clock();
+  function ease(x){return x<0.5?2*x*x:1-Math.pow(-2*x+2,2)/2;}
+  function frame(){
+    requestAnimationFrame(frame);
+    resize();
+    var dt=Math.min(clock.getDelta(),0.05);
+    if(autoSpin&&!dragging&&!seq)theta+=dt*0.25;
+    pulse+=dt*4;
+
+    // idle motions
+    heat.material.emissiveIntensity=Math.max(0,heat.material.emissiveIntensity-dt*0.4);
+    if(highlighted){ var k=0.25+0.2*Math.sin(pulse); parts[highlighted].forEach(function(m){ if(m.material.emissive)m.material.emissive.setRGB(k,k*0.75,0); }); }
+
+    if(seq){
+      var st=STAGES[seq.i]; seq.t+=dt; var p=Math.min(1,seq.t/st.d);
+      if(seq.t===dt||seq.t<=dt){ highlight(st.n); status.textContent=st.msg; }
+      if(st.n==='hopper'){
+        drops.forEach(function(d,j){ d.visible=true; var q=Math.min(1,Math.max(0,p*1.3-j*0.15)); d.position.set(-1.3+j*0.55-0.9, 1.9-q*0.45, -0.2); d.visible=q<1; });
+      } else if(st.n==='mixer'){
+        paddle.rotation.y+=dt*18; batterLvl.position.y=1.45+0.03*Math.sin(pulse*3);
+      } else if(st.n==='griddle'){
+        stream.visible=p<0.5; heat.material.emissiveIntensity=0.9;
+        pancake.visible=p>0.15; pancake.position.set(1.1-0.9,1.76,-0.1); pancake.rotation.set(0,0,0);
+        var sc=Math.min(1,(p-0.15)/0.35); pancake.scale.set(sc,1,sc); pancake.material.color.setHex(p>0.8?0xD9913D:0xF5E2B8);
+      } else if(st.n==='flipper'){
+        stream.visible=false; heat.material.emissiveIntensity=0.9;
+        var a=ease(p); arm.rotation.y=-0.4+Math.sin(a*Math.PI)*0.6; wrist.rotation.z=Math.sin(a*Math.PI)*0.9;
+        pancake.position.y=1.76+Math.sin(a*Math.PI)*0.5; pancake.rotation.x=a*Math.PI;
+      } else if(st.n==='belt'){
+        var e2=ease(p);
+        if(p<0.35){ var q2=p/0.35; pancake.position.set(1.1-0.9+q2*0.45,1.76-q2*0.7,-0.1+q2*0.65); }
+        else { var q3=(p-0.35)/0.65; pancake.position.set(0.65-0.9+q3*2.7,1.09-Math.max(0,q3-0.9)*4,0.55); }
+        pancake.rotation.x=0; pancake.rotation.z=p<0.35?0.6:0;
+        rollers.forEach(function(r){r.rotation.z-=dt*4;});
+        stripes.forEach(function(s,j){ s.position.x=0.9+((j*0.36+seq.t*0.9)%2.0); });
+        if(p>=1){ var pc=pancake.clone(); pc.position.set(3.4-0.9,0.6+stack.length*0.06,0.55); pc.rotation.set(0,0,0); pc.scale.set(1,1,1); root.add(pc); stack.push(pc); if(stack.length>5){root.remove(stack.shift());stack.forEach(function(x,j){x.position.y=0.6+j*0.06;});} pancake.visible=false; }
+      } else if(st.n==='brain'){
+        screen.material.color.setHex(Math.floor(pulse*2)%2?0x7FD1AE:0xFFD449);
+      }
+      if(p>=1){ seq.i++; seq.t=0; if(seq.i>=STAGES.length){ seq=null; makeBtn.disabled=false; screen.material.color.setHex(0x7FD1AE); highlight(null); status.textContent='Pancake ready! Press the button again to make another.'; } }
+    }
+    place();
+    renderer.render(scene,camera);
+  }
+  place(); frame();
+})();
+</script>
