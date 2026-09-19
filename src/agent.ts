@@ -4,6 +4,7 @@ import { CaseFileStore, type CaseFile } from "./caseFile.ts";
 import { type AgentConfig, loadConfig } from "./config.ts";
 import { today } from "./domain/dates.ts";
 import { riskDirective } from "./guardrails.ts";
+import { assessCaseFile, describeSelf, type Assessment, type SelfDescription } from "./interview.ts";
 import { SYSTEM_PROMPT, sessionContext } from "./prompt.ts";
 import { buildTools } from "./tools/index.ts";
 
@@ -68,8 +69,28 @@ export class FamilyLawAgent {
     return this.#caseFile.get();
   }
 
+  /** What the agent currently knows, needs, and can do. No API call. */
+  public assess(): Assessment {
+    return assessCaseFile(this.#caseFile.get());
+  }
+
   public get config(): AgentConfig {
     return this.#config;
+  }
+
+  /**
+   * Opens the conversation from the agent's side: it greets the user and asks
+   * the first question rather than waiting to be interviewed. Costs one API
+   * call, so the caller decides whether to spend it.
+   */
+  public async open(events: AgentEvents = {}): Promise<TurnResult> {
+    if (this.#started) throw new AgentError("The session is already open.");
+    return this.send(
+      "I have just opened this session and have not asked anything yet. Introduce " +
+        "yourself in no more than two sentences, tell me I can ask you questions too, " +
+        "and ask me your first question.",
+      events,
+    );
   }
 
   /** Runs one user turn to completion, streaming output through `events`. */
@@ -181,6 +202,12 @@ export class FamilyLawAgent {
       toolsCalled,
       caseFile: this.#caseFile.get(),
     };
+  }
+
+  /** What the agent can say about itself. No API call. */
+  // eslint-disable-next-line class-methods-use-this -- stable description, not instance state
+  public describe(): SelfDescription {
+    return describeSelf();
   }
 
   /** Clears the transcript while keeping the gathered case facts. */

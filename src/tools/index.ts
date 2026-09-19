@@ -5,6 +5,7 @@ import type { CaseFileStore } from "../caseFile.ts";
 import { COURTS, VERIFIED_AS_OF, venueForZip } from "../data/courts.ts";
 import { FORM_PACKETS, REFERRALS, findFormPackets } from "../data/forms.ts";
 import { searchStatutes } from "../data/statutes.ts";
+import { assessCaseFile, describeSelf } from "../interview.ts";
 import { calculateGuidelineChildSupport } from "../domain/childSupport.ts";
 import { parseIsoDate, today } from "../domain/dates.ts";
 import { computeDeadlines } from "../domain/deadlines.ts";
@@ -235,6 +236,12 @@ export function buildTools(caseFile: CaseFileStore) {
       distanceBetweenHomesMiles: z.number().min(0).optional(),
       petitionFiledOn: IsoDateString.optional(),
       servedOn: IsoDateString.optional(),
+      priorOrderSignedOn: IsoDateString.optional(),
+      texasResidentSixMonths: z.boolean().optional(),
+      countyResidentNinetyDays: z.boolean().optional(),
+      paternityEstablished: z.boolean().optional(),
+      childrenUnderThree: z.boolean().optional(),
+      safetyConcernRaised: z.boolean().optional(),
       note: z.string().max(500).optional().describe("A short free-text fact worth remembering."),
     }),
     run: async (input) => guarded(() => caseFile.update(input)),
@@ -266,7 +273,31 @@ export function buildTools(caseFile: CaseFileStore) {
       })),
   });
 
+  const assessTool = betaZodTool({
+    name: "assess_case_file",
+    description:
+      "Check your own state: what you know about this matter, how complete it is, which " +
+      "of your capabilities are unlocked, which are blocked and on what missing fact, and " +
+      "what to ask next. Call this when the user asks what you still need, when you are " +
+      "deciding what to ask, and before telling a user you cannot help with something.",
+    inputSchema: z.object({}),
+    run: async () => guarded(() => assessCaseFile(caseFile.get())),
+  });
+
+  const selfTool = betaZodTool({
+    name: "describe_self",
+    description:
+      "Report what you are, where your knowledge comes from, when it was last verified, " +
+      "what your known limits are, and what you will not do. Call this whenever the user " +
+      "asks about you, your reliability, your sources, or whether you can be trusted on " +
+      "a point. Answer from this rather than from your own impression of yourself.",
+    inputSchema: z.object({}),
+    run: async () => guarded(() => describeSelf()),
+  });
+
   return [
+    assessTool,
+    selfTool,
     childSupportTool,
     possessionTool,
     deadlineTool,

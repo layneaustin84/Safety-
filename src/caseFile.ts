@@ -21,6 +21,12 @@ export const CaseFileSchema = z.object({
   distanceBetweenHomesMiles: z.number().min(0).optional(),
   petitionFiledOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   servedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  priorOrderSignedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  texasResidentSixMonths: z.boolean().optional(),
+  countyResidentNinetyDays: z.boolean().optional(),
+  paternityEstablished: z.boolean().optional(),
+  childrenUnderThree: z.boolean().optional(),
+  safetyConcernRaised: z.boolean().optional(),
   notes: z.array(z.string()).default([]),
 });
 

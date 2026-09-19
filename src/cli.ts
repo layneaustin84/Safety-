@@ -18,6 +18,8 @@ import { formatLong, parseIsoDate, today } from "./domain/dates.ts";
 import { computeDeadlines, formatDeadline, type TriggerEvent } from "./domain/deadlines.ts";
 import { generatePossessionSchedule } from "./domain/possession.ts";
 import { SCOPE_DISCLOSURE } from "./guardrails.ts";
+import { assessCaseFile, describeSelf, FACT_REQUIREMENTS } from "./interview.ts";
+import { CaseFileSchema } from "./caseFile.ts";
 
 const USAGE = `Texas family law information assistant (Spring, TX)
 
@@ -28,6 +30,8 @@ Usage:
   txfam schedule <from> <to> <miles>     Standard possession calendar
   txfam deadlines <event> <date>         Deadlines from a case event
   txfam venue <zip>                      County, courts, and clerk for a ZIP
+  txfam intake [matterType]              The questions it will ask you, in order
+  txfam whoami                           What it is, where its knowledge comes from
   txfam scope                            Print what this tool is and is not
 
 Events: petition_filed, served_with_citation, answer_filed, final_decree_signed,
@@ -116,6 +120,66 @@ function cmdVenue(args: readonly string[]): void {
   stdout.write(answer.caveats.map((c) => `  - ${c}`).join("\n") + "\n");
 }
 
+function cmdIntake(args: readonly string[]): void {
+  const raw = args[0];
+  const matterType =
+    raw === undefined ? undefined : CaseFileSchema.shape.matterType.unwrap().parse(raw);
+  const assessment = assessCaseFile(
+    CaseFileSchema.parse(matterType === undefined ? {} : { matterType }),
+  );
+
+  stdout.write(
+    `Questions it will ask${matterType === undefined ? "" : ` for a ${matterType} matter`}, ` +
+      `in order:\n\n`,
+  );
+  for (const [index, question] of assessment.openQuestions.entries()) {
+    stdout.write(`  ${index + 1}. ${question.question}\n      why: ${question.why}\n\n`);
+  }
+  stdout.write(`Of ${FACT_REQUIREMENTS.length} facts it tracks, ${assessment.openQuestions.length} apply here.\n\n`);
+  stdout.write("Blocked until answered:\n");
+  for (const capability of assessment.blocked) {
+    stdout.write(`  ${capability.label}\n      needs: ${capability.missing.join(", ")}\n`);
+  }
+}
+
+function cmdWhoami(): void {
+  const self = describeSelf();
+  stdout.write(`${self.identity}\n\nWhat it can do:\n`);
+  for (const capability of self.capabilities) stdout.write(`  - ${capability}\n`);
+  stdout.write("\nWhere its knowledge comes from:\n");
+  for (const source of self.knowledgeSources) {
+    stdout.write(`  ${source.source}\n      ${source.scope}\n`);
+  }
+  stdout.write("\nKnown limits:\n");
+  for (const limit of self.knownLimits) stdout.write(`  - ${limit}\n`);
+  stdout.write("\nWill not do:\n");
+  for (const item of self.willNotDo) stdout.write(`  - ${item}\n`);
+}
+
+function writeStatus(agent: FamilyLawAgent): void {
+  const assessment = agent.assess();
+  stdout.write(`Case file ${Math.round(assessment.completeness * 100)}% complete.\n\n`);
+
+  stdout.write("Known:\n");
+  const entries = Object.entries(assessment.known);
+  if (entries.length === 0) stdout.write("  (nothing yet)\n");
+  for (const [key, value] of entries) stdout.write(`  ${key}: ${JSON.stringify(value)}\n`);
+
+  stdout.write("\nReady now:\n");
+  if (assessment.ready.length === 0) stdout.write("  (nothing yet)\n");
+  for (const capability of assessment.ready) stdout.write(`  - ${capability.label}\n`);
+
+  stdout.write("\nBlocked:\n");
+  for (const capability of assessment.blocked) {
+    stdout.write(`  - ${capability.label}\n      needs: ${capability.missing.join(", ")}\n`);
+  }
+
+  if (assessment.suggestedNextQuestion !== undefined) {
+    stdout.write(`\nIt will ask next: ${assessment.suggestedNextQuestion}\n`);
+  }
+  stdout.write("\n");
+}
+
 async function runTurn(agent: FamilyLawAgent, question: string): Promise<void> {
   const showThinking = agent.config.showThinking;
   await agent.send(question, {
@@ -138,9 +202,26 @@ async function cmdInteractive(): Promise<void> {
   const agent = new FamilyLawAgent();
   const rl = createInterface({ input: stdin, output: stdout });
 
-  stdout.write(`${SCOPE_DISCLOSURE}\n\nCommands: /facts, /reset, /scope, /quit\n\n`);
+  stdout.write(
+    `${SCOPE_DISCLOSURE}\n\nCommands: /status, /facts, /whoami, /reset, /scope, /quit\n\n`,
+  );
 
   try {
+    // The agent opens the interview rather than waiting to be asked.
+    try {
+      await agent.open({
+        onText: (delta) => stdout.write(delta),
+        onToolUse: (name) => stdout.write(`\u001b[2m[${name}]\u001b[0m `),
+      });
+      stdout.write("\n\n");
+    } catch (error) {
+      if (error instanceof AgentError) {
+        stdout.write(`\u001b[31m${error.message}\u001b[0m\n\n`);
+      } else {
+        throw error;
+      }
+    }
+
     for (;;) {
       const line = (await rl.question("> ")).trim();
       if (line.length === 0) continue;
@@ -148,6 +229,15 @@ async function cmdInteractive(): Promise<void> {
       if (line === "/quit" || line === "/exit") break;
       if (line === "/scope") {
         stdout.write(`${SCOPE_DISCLOSURE}\n\n`);
+        continue;
+      }
+      if (line === "/status") {
+        writeStatus(agent);
+        continue;
+      }
+      if (line === "/whoami") {
+        cmdWhoami();
+        stdout.write("\n");
         continue;
       }
       if (line === "/facts") {
@@ -210,6 +300,12 @@ async function main(): Promise<void> {
       return;
     case "venue":
       cmdVenue(args);
+      return;
+    case "intake":
+      cmdIntake(args);
+      return;
+    case "whoami":
+      cmdWhoami();
       return;
     case "scope":
       stdout.write(`${SCOPE_DISCLOSURE}\n`);

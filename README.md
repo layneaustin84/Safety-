@@ -21,6 +21,7 @@ answer names what has to be verified against the official source.
 | Curated Family Code search with citations | 24 hand-checked provisions |
 | Pro se form packets and legal aid, lawyer referral, child support, and domestic violence resources | TexasLawHelp, Lone Star Legal Aid, OAG |
 | Safety screening for family violence, child abuse, abduction risk, and self-harm | Injected as an operator directive before the model answers |
+| Two-way interview: it asks you questions, tracks what it still needs, and answers questions about itself | `src/interview.ts` |
 
 ## Install and run
 
@@ -41,7 +42,16 @@ npm start -- deadlines served_with_citation 2026-09-21
 npm start -- venue 77389
 ```
 
-Interactive commands: `/facts`, `/reset`, `/scope`, `/quit`.
+Interactive commands: `/status`, `/facts`, `/whoami`, `/reset`, `/scope`, `/quit`.
+
+The agent opens the session itself: it introduces itself, tells you that you can
+question it back, and asks the first question. Two more offline commands show
+that machinery without an API call:
+
+```bash
+npm start -- intake modification   # the questions it will ask, in order, and why
+npm start -- whoami                # what it is, its sources, and its limits
+```
 
 ## Configuration
 
@@ -68,6 +78,39 @@ console.log(result.toolsCalled, result.caseFile);
 The pure calculators are exported too, so they can be used without the model:
 `calculateGuidelineChildSupport`, `generatePossessionSchedule`,
 `computeDeadlines`, `venueForZip`, `searchStatutes`, `screenForRisk`.
+
+## The two-way interview
+
+The agent is not a search box waiting for a query. It runs a structured intake
+and hands the turn back.
+
+**It knows what it does not know.** `src/interview.ts` holds one table of facts
+and one table of capabilities. From those it derives what is missing, what each
+missing fact is blocking, and what to ask next. A session progresses like this:
+
+```
+session start                    0%   ready: nothing
+                                      asks: is anyone in danger right now?
+"I want to change my order"     17%   ready: forms_and_referrals
+                                      asks: what is your ZIP code?
+"77386, order exists, two kids" 42%   ready: venue, forms_and_referrals
+                                      asks: what are the paying parent's monthly net resources?
+"$5,200, 8 miles, April 2022"   67%   ready: everything
+                                      asks: any other children he supports?
+```
+
+Question order is deliberate. Safety comes before what the user is trying to do,
+which comes before where they live, which comes before any arithmetic. Questions
+that do not apply are dropped: a modification matter is never asked the six-month
+residency question, and a divorce is never asked when the prior order was signed.
+
+**It knows what it is.** Ask what it is, where a number came from, how current
+its data is, or whether it can be trusted on a point, and it answers from
+`describeSelf()` rather than improvising. That includes the uncomfortable parts:
+no memory between sessions, no access to your actual case or the court's docket,
+an unverified support cap, and a list of things it will not do. It is
+introspective about its own state, not conscious, and the prompt forbids it from
+claiming feelings or a stake in your outcome.
 
 ## Design notes
 
