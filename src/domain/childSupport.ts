@@ -9,7 +9,13 @@
 
 import type { IsoDate } from "./dates.ts";
 import { compareDates } from "./dates.ts";
-import { readinessOf, type Provenance, type Readiness } from "../provenance.ts";
+import {
+  concerningSources,
+  explainConcern,
+  readinessOf,
+  type Provenance,
+  type Readiness,
+} from "../provenance.ts";
 
 /**
  * The § 154.125(a) cap on net resources to which the guideline percentages
@@ -29,24 +35,36 @@ export interface NetResourcesCap {
 const OAG_SOURCE = "Texas Office of the Attorney General, Child Support Division";
 const OAG_URL = "https://www.texasattorneygeneral.gov/child-support";
 const LAST_CHECKED = "2026-05-01";
+/**
+ * The cap moves on a six-year statutory cycle, but an adjustment can land
+ * mid-cycle and the figure is load-bearing for every number this package
+ * produces, so it gets an annual re-confirmation interval.
+ */
+const CAP_MAX_AGE_DAYS = 365;
 
 export const NET_RESOURCES_CAPS: readonly NetResourcesCap[] = [
   {
     effective: "2013-09-01" as IsoDate,
     monthlyCapUsd: 8550,
     provenance: {
-      verificationStatus: "superseded",
+      id: "support_cap",
+      verificationStatus: "verified",
       effectiveDate: "2013-09-01",
       source: OAG_SOURCE,
       sourceUrl: OAG_URL,
       lastChecked: LAST_CHECKED,
-      note: "Replaced by the September 1, 2019 adjustment.",
+      maxAgeDays: CAP_MAX_AGE_DAYS,
+      note:
+        "Superseded by the September 1, 2019 adjustment. Selection is by date, so " +
+        "this entry is only ever reached for an order predating that change.",
     },
   },
   {
     effective: "2019-09-01" as IsoDate,
     monthlyCapUsd: 9200,
     provenance: {
+      id: "support_cap",
+      maxAgeDays: CAP_MAX_AGE_DAYS,
       verificationStatus: "verified",
       effectiveDate: "2019-09-01",
       source: OAG_SOURCE,
@@ -59,6 +77,8 @@ export const NET_RESOURCES_CAPS: readonly NetResourcesCap[] = [
     effective: "2025-09-01" as IsoDate,
     monthlyCapUsd: 9200,
     provenance: {
+      id: "support_cap",
+      maxAgeDays: CAP_MAX_AGE_DAYS,
       verificationStatus: "unverified",
       effectiveDate: "2025-09-01",
       source: OAG_SOURCE,
@@ -223,9 +243,9 @@ export function calculateGuidelineChildSupport(input: ChildSupportInput): ChildS
         "Support above the cap requires proof of the children's proven needs under § 154.126.",
     );
   }
-  const readiness = readinessOf([cap.provenance]);
-  if (readiness === "requires_verification") {
-    caveats.push(`${cap.provenance.note} Confirm at ${cap.provenance.sourceUrl}.`);
+  const readiness = readinessOf([cap.provenance], asOf);
+  for (const concern of concerningSources([cap.provenance], asOf)) {
+    caveats.push(explainConcern(concern));
   }
   caveats.push(
     "Guideline support is a rebuttable presumption. A court may vary from it on " +

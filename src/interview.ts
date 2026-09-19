@@ -13,11 +13,15 @@
  */
 
 import type { CaseFile } from "./caseFile.ts";
-import { VERIFIED_AS_OF } from "./data/courts.ts";
+import { COURT_DIRECTORY_PROVENANCE, VERIFIED_AS_OF } from "./data/courts.ts";
 import { STATUTES } from "./data/statutes.ts";
 import { capFor } from "./domain/childSupport.ts";
-import { parseIsoDate, today } from "./domain/dates.ts";
-import { needsVerification, type Provenance } from "./provenance.ts";
+import { parseIsoDate, today, type IsoDate } from "./domain/dates.ts";
+import {
+  concerningSources,
+  type Provenance,
+  type ProvenanceEvaluation,
+} from "./provenance.ts";
 
 export type MatterType = NonNullable<CaseFile["matterType"]>;
 
@@ -266,8 +270,11 @@ export interface CapabilityStatus {
   readonly state: CapabilityState;
   /** Facts still needed. Empty unless `state` is `blocked`. */
   readonly missing: readonly string[];
-  /** Reference data this capability rests on, when any of it is unconfirmed. */
-  readonly verification?: readonly Provenance[];
+  /**
+   * The sources holding this capability back, with why: unverified, or verified
+   * but past its review interval.
+   */
+  readonly verification?: readonly ProvenanceEvaluation[];
 }
 
 export interface Assessment {
@@ -304,22 +311,34 @@ function relevant(
 }
 
 /**
- * Reference data each capability depends on. A capability whose data is
- * unconfirmed cannot report `ready`, however complete the case file is.
+ * Reference data each capability depends on. A capability whose data cannot be
+ * stood behind does not report `ready`, however complete the case file is.
+ *
+ * This is the single place where "what is this answer built on" is declared.
+ * Anything with a `verifiedAsOf` in its own module belongs here rather than
+ * carrying a date that only a human ever reads.
  */
-function dependenciesOf(spec: CapabilitySpec): readonly Provenance[] {
-  if (spec.id !== "child_support") return [];
-  return [capFor(parseIsoDate(today())).provenance];
+function dependenciesOf(spec: CapabilitySpec, asOf: IsoDate): readonly Provenance[] {
+  switch (spec.id) {
+    case "child_support":
+      return [capFor(asOf).provenance];
+    // Both return court and clerk records straight out of the directory.
+    case "venue":
+    case "forms_and_referrals":
+      return [COURT_DIRECTORY_PROVENANCE];
+    default:
+      return [];
+  }
 }
 
-function statusFor(spec: CapabilitySpec, caseFile: CaseFile): CapabilityStatus {
+function statusFor(spec: CapabilitySpec, caseFile: CaseFile, asOf: IsoDate): CapabilityStatus {
   const missing = spec.requires.filter((field) => !isKnown(caseFile, field));
   const anyOf = spec.requiresAnyOf;
   if (anyOf !== undefined && !anyOf.some((field) => isKnown(caseFile, field))) {
     missing.push(...anyOf);
   }
 
-  const unconfirmed = dependenciesOf(spec).filter(needsVerification);
+  const unconfirmed = concerningSources(dependenciesOf(spec, asOf), asOf);
   const state: CapabilityState =
     missing.length > 0 ? "blocked" : unconfirmed.length > 0 ? "requires_verification" : "ready";
 
@@ -332,8 +351,13 @@ function statusFor(spec: CapabilitySpec, caseFile: CaseFile): CapabilityStatus {
   };
 }
 
-/** Builds the agent's picture of what it knows, needs, and can do right now. */
-export function assessCaseFile(caseFile: CaseFile): Assessment {
+/**
+ * Builds the agent's picture of what it knows, needs, and can do right now.
+ *
+ * `asOf` is injectable so freshness transitions are testable without waiting
+ * for a calendar to move.
+ */
+export function assessCaseFile(caseFile: CaseFile, asOf: IsoDate = parseIsoDate(today())): Assessment {
   const matterType = caseFile.matterType;
 
   const applicable = FACT_REQUIREMENTS.filter((r) => relevant(r.appliesTo, matterType));
@@ -342,7 +366,7 @@ export function assessCaseFile(caseFile: CaseFile): Assessment {
     .sort((a, b) => a.priority - b.priority);
 
   const statuses = CAPABILITIES.filter((c) => relevant(c.appliesTo, matterType)).map((c) =>
-    statusFor(c, caseFile),
+    statusFor(c, caseFile, asOf),
   );
 
   const answered = applicable.length - openQuestions.length;
@@ -399,7 +423,7 @@ export function describeSelf(): SelfDescription {
       },
       {
         source: "Harris and Montgomery county court directory",
-        scope: `Courts, clerks, addresses, and the Spring ZIP-to-county table. Last reviewed ${VERIFIED_AS_OF}; court numbers and addresses drift without notice.`,
+        scope: `Courts, clerks, addresses, and the Spring ZIP-to-county table, confirmed against the counties' own pages on ${VERIFIED_AS_OF}. It carries a 90-day review interval, and once that lapses anything built on it reports 'requires verification' even though the records were confirmed when written. Court assignments and clerk addresses drift without any statute changing.`,
       },
       {
         source: "Calculators I run myself",
@@ -414,6 +438,9 @@ export function describeSelf(): SelfDescription {
         "support calculation reports 'requires verification' rather than 'ready' until " +
         "the current figure is confirmed with the Attorney General. That downgrade is " +
         "automatic; it does not depend on me remembering to mention it.",
+      "Verification and freshness are tracked separately. A source can be " +
+        "confirmed and still too old to rely on, and I report which of the two " +
+        "is the problem rather than a single 'current' flag.",
       "Geographic restrictions are order-specific. I will not assume a standard Texas " +
         "restriction, and I cannot decide whether a move complies with yours.",
       "Possession dates tied to school dismissal are placeholders. Three districts serve " +

@@ -11,6 +11,8 @@
  * re-check rather than presenting stale data as current.
  */
 
+import type { Provenance } from "../provenance.ts";
+
 export type County = "Harris" | "Montgomery";
 
 export interface CourtRecord {
@@ -31,6 +33,26 @@ export interface ZipRecord {
 
 /** Last date the records in this module were reviewed against public sources. */
 export const VERIFIED_AS_OF = "2026-05-01";
+
+/**
+ * Provenance for the directory as a whole.
+ *
+ * These records were confirmed against the counties' own pages, so the
+ * verification status is `verified`. The freshness interval is the short part:
+ * court assignments, clerk addresses, and filing procedures change on roughly a
+ * quarterly cadence without any statute moving, which is precisely the case
+ * that a single "is it current" flag cannot express.
+ */
+export const COURT_DIRECTORY_PROVENANCE: Provenance = {
+  id: "court_directory",
+  verificationStatus: "verified",
+  effectiveDate: VERIFIED_AS_OF,
+  source: "Harris County and Montgomery County district court and district clerk websites",
+  sourceUrl: "https://www.justex.net/",
+  lastChecked: VERIFIED_AS_OF,
+  maxAgeDays: 90,
+  note: "Confirmed against the counties' published directories on the date shown.",
+};
 
 export const SPRING_ZIP_CODES: readonly ZipRecord[] = [
   { zip: "77373", county: "Harris", note: "Old Town Spring and the area east of I-45." },

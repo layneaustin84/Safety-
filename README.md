@@ -123,21 +123,37 @@ period; it does not happen, because the parent already has the child. What was
 removed is reported in `superseded`, never dropped silently. A test asserts that
 no two periods overlap across a full generated year.
 
-**Unverified reference data downgrades the capability, automatically.** Any value
-resting on an outside publication carries a `Provenance` record with
-`verificationStatus`, `effectiveDate`, `source`, `sourceUrl`, and `lastChecked`.
-A capability depending on unconfirmed data cannot report `ready` however complete
-the case file is:
+**Reference data governs capability readiness, and verification is separate from
+freshness.** Any value resting on an outside publication carries a `Provenance`
+record with `id`, `verificationStatus`, `effectiveDate`, `source`, `sourceUrl`,
+`lastChecked`, and a per-source `maxAgeDays` policy. Readiness is derived, never
+stored:
+
+| Source state | Capability state | Concern |
+|---|---|---|
+| unverified | `requires_verification` | `unverified` |
+| verified, within `maxAgeDays` | `ready` | — |
+| verified, beyond `maxAgeDays` | `requires_verification` | `stale` |
+| required fact missing | `blocked` | — |
+
+Keeping the two dimensions apart matters most for the court directory, which was
+confirmed against the counties' own pages and still goes stale on a 90-day
+interval without any statute moving. A single "is it current" flag cannot say
+that. A missing fact outranks a verification concern, because "I cannot do this"
+and "I can, but confirm the figure first" are different messages.
 
 ```
-READY: forms_and_referrals
-REQUIRES VERIFICATION:
-  child_support — unverified, effective 2025-09-01, last checked 2026-05-01
-BLOCKED: venue <- zip, possession_schedule <- distanceBetweenHomesMiles, ...
+READY:                 possession_schedule
+REQUIRES VERIFICATION: venue <- court_directory (stale)
+REQUIRES VERIFICATION: child_support <- support_cap (unverified)
+REQUIRES VERIFICATION: forms_and_referrals <- court_directory (stale)
+BLOCKED:               case_deadlines <- petitionFiledOn, servedOn, priorOrderSignedOn
+                       relocation_analysis <- geographicRestrictionExists, destination
 ```
 
-The support calculator returns `readiness: "requires_verification"` alongside the
-number. Nothing depends on the model remembering a warning.
+`dependenciesOf` is the single place a capability's sources are declared.
+Anything holding a review date in its own module belongs there rather than
+carrying a date only a human ever reads.
 
 **Order-specific language is never assumed.** Texas has no relocation statute.
 Section 153.134(b)(1) lets a court fix any geographic area it likes, and the

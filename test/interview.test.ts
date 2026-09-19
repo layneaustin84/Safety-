@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { CaseFileSchema, CaseFileStore, type CaseFile } from "../src/caseFile.ts";
+import { COURT_DIRECTORY_PROVENANCE } from "../src/data/courts.ts";
+import { parseIsoDate, type IsoDate } from "../src/domain/dates.ts";
+import { evaluateProvenance, readinessOf, type Provenance } from "../src/provenance.ts";
 import {
   CAPABILITIES,
   FACT_REQUIREMENTS,
@@ -74,14 +77,18 @@ describe("case assessment", () => {
     assert.ok(support !== undefined);
     assert.equal(support.state, "requires_verification");
     assert.deepEqual(support.missing, []);
-    assert.equal(support.verification?.[0]?.verificationStatus, "unverified");
-    assert.ok(support.verification?.[0]?.sourceUrl.startsWith("https://"));
+    assert.equal(support.verification?.[0]?.id, "support_cap");
+    assert.equal(support.verification?.[0]?.concern, "unverified");
+    assert.equal(support.verification?.[0]?.provenance.verificationStatus, "unverified");
+    assert.ok(support.verification?.[0]?.provenance.sourceUrl.startsWith("https://"));
     assert.ok(assessment.ready.every((c) => c.id !== "child_support"));
   });
 
-  it("leaves capabilities with no unconfirmed dependency fully ready", () => {
-    const assessment = assessCaseFile(caseFile({ zip: "77373" }));
-    assert.ok(assessment.ready.some((c) => c.id === "venue"));
+  it("leaves capabilities with no reference dependency fully ready", () => {
+    const assessment = assessCaseFile(
+      caseFile({ childrenCount: 2, distanceBetweenHomesMiles: 8 }),
+    );
+    assert.ok(assessment.ready.some((c) => c.id === "possession_schedule"));
   });
 
   it("asks for relocation facts only on matters where a move is in play", () => {
@@ -215,5 +222,120 @@ describe("geographic restriction analysis", () => {
     assert.equal(analysis.determination, "no_restriction_reported");
     assert.ok(analysis.nextSteps.some((s) => s.toLowerCase().includes("notice")));
     assert.ok(analysis.caveats.some((c) => c.toLowerCase().includes("vary")));
+  });
+});
+
+describe("provenance: verification and freshness are separate dimensions", () => {
+  const asOf = (value: string): IsoDate => parseIsoDate(value);
+
+  const verified: Provenance = {
+    id: "court_directory",
+    verificationStatus: "verified",
+    effectiveDate: "2026-01-01",
+    source: "test source",
+    sourceUrl: "https://example.invalid/",
+    lastChecked: "2026-01-01",
+    maxAgeDays: 90,
+    note: "Confirmed when written.",
+  };
+
+  it("verified and within the interval is ready", () => {
+    const evaluation = evaluateProvenance(verified, asOf("2026-03-01"));
+    assert.equal(evaluation.readiness, "ready");
+    assert.equal(evaluation.concern, undefined);
+    assert.equal(evaluation.ageDays, 59);
+    assert.equal(evaluation.staleAfter, "2026-04-01");
+  });
+
+  it("verified but past the interval requires verification, as stale", () => {
+    const evaluation = evaluateProvenance(verified, asOf("2026-06-01"));
+    assert.equal(evaluation.readiness, "requires_verification");
+    assert.equal(evaluation.concern, "stale");
+    assert.equal(evaluation.ageDays, 151);
+  });
+
+  it("treats the boundary day itself as still fresh", () => {
+    assert.equal(evaluateProvenance(verified, asOf("2026-04-01")).readiness, "ready");
+    assert.equal(evaluateProvenance(verified, asOf("2026-04-02")).concern, "stale");
+  });
+
+  it("unverified requires verification regardless of how recently it was checked", () => {
+    const fresh: Provenance = {
+      ...verified,
+      id: "support_cap",
+      verificationStatus: "unverified",
+      lastChecked: "2026-01-01",
+    };
+    const evaluation = evaluateProvenance(fresh, asOf("2026-01-02"));
+    assert.equal(evaluation.readiness, "requires_verification");
+    assert.equal(evaluation.concern, "unverified");
+  });
+
+  it("names the unverified concern when a source is both unverified and stale", () => {
+    const both: Provenance = { ...verified, verificationStatus: "unverified" };
+    assert.equal(evaluateProvenance(both, asOf("2027-01-01")).concern, "unverified");
+  });
+
+  it("aggregates: one unready source makes the whole set unready", () => {
+    const stale: Provenance = { ...verified, lastChecked: "2020-01-01" };
+    assert.equal(readinessOf([verified], asOf("2026-02-01")), "ready");
+    assert.equal(readinessOf([verified, stale], asOf("2026-02-01")), "requires_verification");
+  });
+});
+
+describe("capability readiness follows its reference data", () => {
+  const complete = CaseFileSchema.parse({
+    matterType: "modification",
+    zip: "77373",
+    childrenCount: 2,
+    monthlyNetResourcesUsd: 5200,
+    distanceBetweenHomesMiles: 8,
+  });
+
+  it("court-directory capabilities are ready while the directory is fresh", () => {
+    const freshDay = parseIsoDate(COURT_DIRECTORY_PROVENANCE.lastChecked);
+    const assessment = assessCaseFile(complete, freshDay);
+    assert.ok(assessment.ready.some((c) => c.id === "venue"));
+    assert.ok(assessment.ready.some((c) => c.id === "forms_and_referrals"));
+  });
+
+  it("the same capabilities go to requires_verification once it goes stale", () => {
+    const assessment = assessCaseFile(complete, parseIsoDate("2027-01-01"));
+    const forms = assessment.requiresVerification.find((c) => c.id === "forms_and_referrals");
+    assert.ok(forms !== undefined);
+    assert.equal(forms.verification?.[0]?.id, "court_directory");
+    assert.equal(forms.verification?.[0]?.concern, "stale");
+    assert.deepEqual(forms.missing, []);
+    assert.ok(assessment.ready.every((c) => c.id !== "venue"));
+  });
+
+  it("support stays unverified no matter which day it is assessed on", () => {
+    for (const day of ["2026-05-02", "2027-01-01"]) {
+      const assessment = assessCaseFile(complete, parseIsoDate(day));
+      const support = assessment.requiresVerification.find((c) => c.id === "child_support");
+      assert.ok(support !== undefined, `child_support should need verification on ${day}`);
+      assert.equal(support.verification?.[0]?.concern, "unverified");
+    }
+  });
+
+  it("a missing fact outranks a verification concern", () => {
+    // Blocked means "I cannot do this at all", which is a different message to
+    // the user than "I can, but confirm the figure first". Blocked must win.
+    const assessment = assessCaseFile(
+      CaseFileSchema.parse({ matterType: "modification" }),
+      parseIsoDate("2027-01-01"),
+    );
+    const support = assessment.blocked.find((c) => c.id === "child_support");
+    assert.ok(support !== undefined);
+    assert.equal(support.state, "blocked");
+    assert.ok(support.missing.length > 0);
+    assert.ok(assessment.requiresVerification.every((c) => c.id !== "child_support"));
+  });
+
+  it("possession has no reference dependency and is unaffected by any date", () => {
+    for (const day of ["2026-05-01", "2030-01-01"]) {
+      const assessment = assessCaseFile(complete, parseIsoDate(day));
+      assert.ok(assessment.ready.some((c) => c.id === "possession_schedule"));
+    }
   });
 });

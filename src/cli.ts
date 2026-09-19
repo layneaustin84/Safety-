@@ -19,6 +19,7 @@ import { computeDeadlines, formatDeadline, type TriggerEvent } from "./domain/de
 import { generatePossessionSchedule } from "./domain/possession.ts";
 import { SCOPE_DISCLOSURE } from "./guardrails.ts";
 import { assessCaseFile, describeSelf, FACT_REQUIREMENTS } from "./interview.ts";
+import { explainConcern } from "./provenance.ts";
 import { CaseFileSchema } from "./caseFile.ts";
 
 const USAGE = `Texas family law information assistant (Spring, TX)
@@ -172,10 +173,15 @@ function writeStatus(agent: FamilyLawAgent): void {
   if (assessment.requiresVerification.length > 0) {
     stdout.write("\nReady, but resting on data that must be confirmed first:\n");
     for (const capability of assessment.requiresVerification) {
-      stdout.write(`  - ${capability.label}\n`);
-      for (const source of capability.verification ?? []) {
-        stdout.write(`      ${source.source}, effective ${source.effectiveDate}: ${source.note}\n`);
-        stdout.write(`      confirm at ${source.sourceUrl} (last checked ${source.lastChecked})\n`);
+      const ids = (capability.verification ?? []).map((v) => v.id).join(", ");
+      stdout.write(`  - ${capability.label}\n      blocked on: ${ids}\n`);
+      for (const evaluation of capability.verification ?? []) {
+        stdout.write(
+          `      ${evaluation.id} [${evaluation.concern}] last checked ` +
+            `${evaluation.provenance.lastChecked}, ${evaluation.ageDays} days ago, ` +
+            `stale after ${evaluation.staleAfter}\n`,
+        );
+        stdout.write(`      ${explainConcern(evaluation)}\n`);
       }
     }
   }
