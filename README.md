@@ -22,6 +22,7 @@ answer names what has to be verified against the official source.
 | Pro se form packets and legal aid, lawyer referral, child support, and domestic violence resources | TexasLawHelp, Lone Star Legal Aid, OAG |
 | Safety screening for family violence, child abuse, abduction risk, and self-harm | Injected as an operator directive before the model answers |
 | Two-way interview: it asks you questions, tracks what it still needs, and answers questions about itself | `src/interview.ts` |
+| Geographic restrictions and relocation, without assuming what your order says | Tex. Fam. Code § 153.134(b)(1); Lenz v. Lenz |
 
 ## Install and run
 
@@ -111,6 +112,49 @@ no memory between sessions, no access to your actual case or the court's docket,
 an unverified support cap, and a list of things it will not do. It is
 introspective about its own state, not conscious, and the prompt forbids it from
 claiming feelings or a stake in your outcome.
+
+## Three correctness properties
+
+**Possession periods never conflict.** Holiday and extended summer possession are
+exceptions to the ordinary schedule, not parallel schedules beside it. Each
+period carries a precedence tier, and a resolution pass removes or trims the
+lower tier. A weekend falling inside a summer block is not a second possession
+period; it does not happen, because the parent already has the child. What was
+removed is reported in `superseded`, never dropped silently. A test asserts that
+no two periods overlap across a full generated year.
+
+**Unverified reference data downgrades the capability, automatically.** Any value
+resting on an outside publication carries a `Provenance` record with
+`verificationStatus`, `effectiveDate`, `source`, `sourceUrl`, and `lastChecked`.
+A capability depending on unconfirmed data cannot report `ready` however complete
+the case file is:
+
+```
+READY: forms_and_referrals
+REQUIRES VERIFICATION:
+  child_support — unverified, effective 2025-09-01, last checked 2026-05-01
+BLOCKED: venue <- zip, possession_schedule <- distanceBetweenHomesMiles, ...
+```
+
+The support calculator returns `readiness: "requires_verification"` alongside the
+number. Nothing depends on the model remembering a warning.
+
+**Order-specific language is never assumed.** Texas has no relocation statute.
+Section 153.134(b)(1) lets a court fix any geographic area it likes, and the
+same move is permitted under "the State of Texas" and prohibited under "Harris
+County only". So the relocation analysis asks for the restriction verbatim and
+refuses to reason from a typical one:
+
+```
+determination: requires_order_language
+"There is a geographic restriction, so the move turns on its exact words.
+ I will not guess at them."
+needed: The restriction's exact wording, copied from the order
+        Who the restriction binds: the primary conservator only, or both parents
+```
+
+Given the words and a destination it still stops at `requires_legal_judgment`.
+It gives the Lenz factors and what must be proved; it does not rule on the move.
 
 ## Design notes
 

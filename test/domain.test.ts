@@ -5,6 +5,7 @@ import {
   Weekday,
   addDays,
   addMonths,
+  compareDates,
   fridayOrdinalInMonth,
   nextWeekday,
   nthWeekdayOfMonth,
@@ -119,14 +120,26 @@ describe("guideline child support", () => {
     assert.equal(result.monthlyGuidelineSupportUsd, 900);
   });
 
-  it("surfaces the unverified-cap warning rather than hiding it", () => {
+  it("downgrades readiness when the cap is unverified, not merely warns", () => {
     const result = calculateGuidelineChildSupport({
       monthlyNetResourcesUsd: 20_000,
       childrenBeforeCourt: 1,
       asOf: d("2026-06-01"),
     });
-    assert.equal(result.cap.verified, false);
+    assert.equal(result.cap.provenance.verificationStatus, "unverified");
+    assert.equal(result.readiness, "requires_verification");
+    assert.equal(result.provenance[0]?.sourceUrl.includes("texasattorneygeneral.gov"), true);
     assert.ok(result.caveats.some((c) => c.includes("texasattorneygeneral.gov")));
+  });
+
+  it("reports ready when the applicable cap is verified", () => {
+    const result = calculateGuidelineChildSupport({
+      monthlyNetResourcesUsd: 5000,
+      childrenBeforeCourt: 1,
+      asOf: d("2021-06-01"),
+    });
+    assert.equal(result.cap.provenance.verificationStatus, "verified");
+    assert.equal(result.readiness, "ready");
   });
 
   it("rejects malformed input", () => {
@@ -243,6 +256,56 @@ describe("possession schedule", () => {
     });
     const christmas = schedule.periods.find((p) => p.label === "Christmas, first half");
     assert.equal(christmas?.schoolDependent, true);
+  });
+
+  it("removes ordinary weekends that fall inside extended summer possession", () => {
+    const schedule = generatePossessionSchedule(d("2026-06-25"), d("2026-08-10"), {
+      distanceMiles: 20,
+    });
+    const summer = schedule.periods.find((p) => p.label.includes("Extended summer"));
+    assert.ok(summer !== undefined);
+
+    // Nothing kept may overlap the summer block.
+    const overlapping = schedule.periods.filter(
+      (p) =>
+        p !== summer &&
+        compareDates(p.start, summer.end) < 0 &&
+        compareDates(p.end, summer.start) > 0,
+    );
+    assert.deepEqual(overlapping, []);
+
+    // And the removals are reported rather than dropped silently.
+    assert.ok(schedule.superseded.length >= 2);
+    assert.ok(
+      schedule.superseded.every((x) => x.supersededBy.includes("Extended summer possession")),
+    );
+  });
+
+  it("produces no overlapping periods at all across a full year", () => {
+    const schedule = generatePossessionSchedule(d("2026-01-01"), d("2026-12-31"), {
+      distanceMiles: 20,
+      possessoryParentRole: "father",
+    });
+    const sorted = [...schedule.periods];
+    for (let i = 1; i < sorted.length; i += 1) {
+      const previous = sorted[i - 1];
+      const current = sorted[i];
+      assert.ok(previous !== undefined && current !== undefined);
+      assert.ok(
+        compareDates(previous.end, current.start) <= 0,
+        `${previous.label} (ends ${previous.end}) overlaps ${current.label} (starts ${current.start})`,
+      );
+    }
+  });
+
+  it("lets holiday possession supersede summer, not the other way round", () => {
+    const schedule = generatePossessionSchedule(d("2026-01-01"), d("2026-12-31"), {
+      distanceMiles: 240,
+    });
+    const removedHolidays = schedule.superseded.filter(
+      (x) => x.period.precedence === 3 && x.outcome === "removed",
+    );
+    assert.deepEqual(removedHolidays, []);
   });
 
   it("rejects an inverted range", () => {

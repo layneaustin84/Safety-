@@ -8,6 +8,7 @@ import {
   assessCaseFile,
   describeSelf,
 } from "../src/interview.ts";
+import { analyzeGeographicRestriction } from "../src/domain/relocation.ts";
 
 const caseFile = (partial: Partial<CaseFile> = {}): CaseFile => CaseFileSchema.parse(partial);
 
@@ -55,12 +56,39 @@ describe("case assessment", () => {
 
   it("unlocks a capability when its last missing fact arrives", () => {
     const partial = assessCaseFile(caseFile({ matterType: "sapcr", childrenCount: 2 }));
-    assert.ok(partial.ready.every((c) => c.id !== "child_support"));
+    assert.ok(partial.blocked.some((c) => c.id === "child_support"));
 
     const complete = assessCaseFile(
       caseFile({ matterType: "sapcr", childrenCount: 2, monthlyNetResourcesUsd: 4000 }),
     );
-    assert.ok(complete.ready.some((c) => c.id === "child_support"));
+    assert.ok(complete.blocked.every((c) => c.id !== "child_support"));
+  });
+
+  it("downgrades support to requires_verification while the cap is unconfirmed", () => {
+    // The facts are complete, so this is not a missing-fact problem. The
+    // capability is held back by its own reference data, automatically.
+    const assessment = assessCaseFile(
+      caseFile({ matterType: "sapcr", childrenCount: 2, monthlyNetResourcesUsd: 4000 }),
+    );
+    const support = assessment.requiresVerification.find((c) => c.id === "child_support");
+    assert.ok(support !== undefined);
+    assert.equal(support.state, "requires_verification");
+    assert.deepEqual(support.missing, []);
+    assert.equal(support.verification?.[0]?.verificationStatus, "unverified");
+    assert.ok(support.verification?.[0]?.sourceUrl.startsWith("https://"));
+    assert.ok(assessment.ready.every((c) => c.id !== "child_support"));
+  });
+
+  it("leaves capabilities with no unconfirmed dependency fully ready", () => {
+    const assessment = assessCaseFile(caseFile({ zip: "77373" }));
+    assert.ok(assessment.ready.some((c) => c.id === "venue"));
+  });
+
+  it("asks for relocation facts only on matters where a move is in play", () => {
+    const modification = assessCaseFile(caseFile({ matterType: "modification" })).openQuestions;
+    const divorce = assessCaseFile(caseFile({ matterType: "divorce" })).openQuestions;
+    assert.ok(modification.some((q) => q.field === "geographicRestrictionExists"));
+    assert.ok(divorce.every((q) => q.field !== "geographicRestrictionAreaVerbatim"));
   });
 
   it("treats any one of several dates as enough for deadlines", () => {
@@ -92,6 +120,11 @@ describe("case assessment", () => {
       otherChildrenSupported: 0,
       distanceBetweenHomesMiles: 15,
       childrenUnderThree: false,
+      geographicRestrictionExists: "yes",
+      geographicRestrictionAreaVerbatim: "Harris County and contiguous counties",
+      geographicRestrictionAppliesTo: "primary_conservator",
+      geographicRestrictionExceptionsVerbatim: "none",
+      proposedRelocationDestination: "Dallas, Texas",
       priorOrderSignedOn: "2024-02-02",
       petitionFiledOn: "2026-01-05",
       servedOn: "2026-01-12",
@@ -129,5 +162,58 @@ describe("self description", () => {
     const willNot = describeSelf().willNotDo.join(" ").toLowerCase();
     assert.ok(willNot.includes("predict how a judge"));
     assert.ok(willNot.includes("draft"));
+  });
+});
+
+describe("geographic restriction analysis", () => {
+  it("refuses to proceed without knowing whether a restriction exists", () => {
+    const analysis = analyzeGeographicRestriction({ exists: "unknown" });
+    assert.equal(analysis.determination, "restriction_status_unknown");
+    assert.ok(analysis.needed.length > 0);
+  });
+
+  it("will not guess the restriction's wording", () => {
+    const analysis = analyzeGeographicRestriction({
+      exists: "yes",
+      proposedDestination: "Dallas, Texas",
+      appliesTo: "primary_conservator",
+    });
+    assert.equal(analysis.determination, "requires_order_language");
+    assert.ok(analysis.needed.some((n) => n.includes("exact wording")));
+    // It must not have invented a typical Texas restriction to reason from.
+    assert.ok(!analysis.summary.includes("contiguous"));
+  });
+
+  it("stops short of deciding whether a move complies", () => {
+    const analysis = analyzeGeographicRestriction({
+      exists: "yes",
+      areaVerbatim: "Harris County, Texas",
+      appliesTo: "primary_conservator",
+      proposedDestination: "Dallas, Texas",
+    });
+    assert.equal(analysis.determination, "requires_legal_judgment");
+    assert.ok(analysis.summary.includes("Harris County, Texas"));
+    assert.ok(analysis.summary.includes("Dallas, Texas"));
+    const text = `${analysis.summary} ${analysis.nextSteps.join(" ")}`.toLowerCase();
+    assert.ok(!text.includes("you may move"));
+    assert.ok(!text.includes("is prohibited"));
+  });
+
+  it("treats a request to change the restriction as a modification suit", () => {
+    const analysis = analyzeGeographicRestriction({
+      exists: "yes",
+      areaVerbatim: "Spring Independent School District",
+      appliesTo: "both_parents",
+      proposedDestination: "Conroe, Texas",
+      seeksToModifyRestriction: true,
+    });
+    assert.ok(analysis.summary.includes("156.101"));
+  });
+
+  it("still warns when no restriction is reported", () => {
+    const analysis = analyzeGeographicRestriction({ exists: "no" });
+    assert.equal(analysis.determination, "no_restriction_reported");
+    assert.ok(analysis.nextSteps.some((s) => s.toLowerCase().includes("notice")));
+    assert.ok(analysis.caveats.some((c) => c.toLowerCase().includes("vary")));
   });
 });

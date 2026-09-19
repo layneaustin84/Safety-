@@ -169,7 +169,19 @@ function writeStatus(agent: FamilyLawAgent): void {
   if (assessment.ready.length === 0) stdout.write("  (nothing yet)\n");
   for (const capability of assessment.ready) stdout.write(`  - ${capability.label}\n`);
 
+  if (assessment.requiresVerification.length > 0) {
+    stdout.write("\nReady, but resting on data that must be confirmed first:\n");
+    for (const capability of assessment.requiresVerification) {
+      stdout.write(`  - ${capability.label}\n`);
+      for (const source of capability.verification ?? []) {
+        stdout.write(`      ${source.source}, effective ${source.effectiveDate}: ${source.note}\n`);
+        stdout.write(`      confirm at ${source.sourceUrl} (last checked ${source.lastChecked})\n`);
+      }
+    }
+  }
+
   stdout.write("\nBlocked:\n");
+  if (assessment.blocked.length === 0) stdout.write("  (nothing)\n");
   for (const capability of assessment.blocked) {
     stdout.write(`  - ${capability.label}\n      needs: ${capability.missing.join(", ")}\n`);
   }

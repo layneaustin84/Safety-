@@ -27,6 +27,19 @@ export const CaseFileSchema = z.object({
   paternityEstablished: z.boolean().optional(),
   childrenUnderThree: z.boolean().optional(),
   safetyConcernRaised: z.boolean().optional(),
+  /**
+   * Geographic restriction facts, kept flat so the interview can ask for them
+   * one at a time. The verbatim fields are deliberately free text: the
+   * controlling language is order-specific and must never be inferred.
+   */
+  geographicRestrictionExists: z.enum(["yes", "no", "unknown"]).optional(),
+  geographicRestrictionAreaVerbatim: z.string().max(1000).optional(),
+  geographicRestrictionAppliesTo: z
+    .enum(["primary_conservator", "both_parents", "unknown"])
+    .optional(),
+  geographicRestrictionExceptionsVerbatim: z.string().max(1000).optional(),
+  proposedRelocationDestination: z.string().max(200).optional(),
+  seeksToModifyRestriction: z.boolean().optional(),
   notes: z.array(z.string()).default([]),
 });
 

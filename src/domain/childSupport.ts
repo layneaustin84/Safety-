@@ -9,45 +9,67 @@
 
 import type { IsoDate } from "./dates.ts";
 import { compareDates } from "./dates.ts";
+import { readinessOf, type Provenance, type Readiness } from "../provenance.ts";
 
 /**
  * The § 154.125(a) cap on net resources to which the guideline percentages
  * apply. The OAG adjusts it for inflation every six years and publishes the new
  * figure in the Texas Register.
  *
- * `verified` marks the entries this package can vouch for. An unverified cap is
- * still used for the math, but the calculator flags it so the caller confirms
- * the current figure against the OAG before relying on a number.
+ * Each entry carries machine-readable provenance rather than a prose warning,
+ * so a calculation resting on an unverified cap reports
+ * `readiness: "requires_verification"` on its own.
  */
 export interface NetResourcesCap {
   readonly effective: IsoDate;
   readonly monthlyCapUsd: number;
-  readonly verified: boolean;
-  readonly note: string;
+  readonly provenance: Provenance;
 }
+
+const OAG_SOURCE = "Texas Office of the Attorney General, Child Support Division";
+const OAG_URL = "https://www.texasattorneygeneral.gov/child-support";
+const LAST_CHECKED = "2026-05-01";
 
 export const NET_RESOURCES_CAPS: readonly NetResourcesCap[] = [
   {
     effective: "2013-09-01" as IsoDate,
     monthlyCapUsd: 8550,
-    verified: true,
-    note: "Superseded.",
+    provenance: {
+      verificationStatus: "superseded",
+      effectiveDate: "2013-09-01",
+      source: OAG_SOURCE,
+      sourceUrl: OAG_URL,
+      lastChecked: LAST_CHECKED,
+      note: "Replaced by the September 1, 2019 adjustment.",
+    },
   },
   {
     effective: "2019-09-01" as IsoDate,
     monthlyCapUsd: 9200,
-    verified: true,
-    note: "Published by the Texas Attorney General effective September 1, 2019.",
+    provenance: {
+      verificationStatus: "verified",
+      effectiveDate: "2019-09-01",
+      source: OAG_SOURCE,
+      sourceUrl: OAG_URL,
+      lastChecked: LAST_CHECKED,
+      note: "Published figure, confirmed.",
+    },
   },
   {
     effective: "2025-09-01" as IsoDate,
     monthlyCapUsd: 9200,
-    verified: false,
-    note:
-      "A six-year inflation adjustment was due September 1, 2025. This package " +
-      "could not verify the published figure, so it carries the prior cap " +
-      "forward. Confirm the current cap at texasattorneygeneral.gov before " +
-      "relying on this amount.",
+    provenance: {
+      verificationStatus: "unverified",
+      effectiveDate: "2025-09-01",
+      source: OAG_SOURCE,
+      sourceUrl: OAG_URL,
+      lastChecked: LAST_CHECKED,
+      note:
+        "A six-year inflation adjustment was due on this date and this package " +
+        "could not confirm the published figure, so the prior cap is carried " +
+        "forward. Any amount computed from it must be confirmed against the OAG " +
+        "before it is relied on.",
+    },
   },
 ];
 
@@ -92,6 +114,12 @@ export interface ChildSupportResult {
   readonly capApplied: boolean;
   readonly cap: NetResourcesCap;
   readonly scheduleUsed: "standard" | "low-income" | "multiple-household";
+  /**
+   * `requires_verification` when the result rests on reference data this
+   * package could not confirm. Callers must surface it; it is not advisory.
+   */
+  readonly readiness: Readiness;
+  readonly provenance: readonly Provenance[];
   readonly statutoryBasis: readonly string[];
   readonly caveats: readonly string[];
 }
@@ -195,8 +223,9 @@ export function calculateGuidelineChildSupport(input: ChildSupportInput): ChildS
         "Support above the cap requires proof of the children's proven needs under § 154.126.",
     );
   }
-  if (!cap.verified) {
-    caveats.push(cap.note);
+  const readiness = readinessOf([cap.provenance]);
+  if (readiness === "requires_verification") {
+    caveats.push(`${cap.provenance.note} Confirm at ${cap.provenance.sourceUrl}.`);
   }
   caveats.push(
     "Guideline support is a rebuttable presumption. A court may vary from it on " +
@@ -215,6 +244,8 @@ export function calculateGuidelineChildSupport(input: ChildSupportInput): ChildS
     capApplied,
     cap,
     scheduleUsed,
+    readiness,
+    provenance: [cap.provenance],
     statutoryBasis,
     caveats,
   };

@@ -15,6 +15,9 @@
 import type { CaseFile } from "./caseFile.ts";
 import { VERIFIED_AS_OF } from "./data/courts.ts";
 import { STATUTES } from "./data/statutes.ts";
+import { capFor } from "./domain/childSupport.ts";
+import { parseIsoDate, today } from "./domain/dates.ts";
+import { needsVerification, type Provenance } from "./provenance.ts";
 
 export type MatterType = NonNullable<CaseFile["matterType"]>;
 
@@ -24,6 +27,7 @@ export type CapabilityId =
   | "possession_schedule"
   | "case_deadlines"
   | "modification_analysis"
+  | "relocation_analysis"
   | "forms_and_referrals";
 
 /** A fact the agent needs, phrased as the question it would ask to get it. */
@@ -75,6 +79,12 @@ export const CAPABILITIES: readonly CapabilitySpec[] = [
     label: "Assess whether your order is eligible for modification",
     requires: ["priorOrderSignedOn"],
     appliesTo: ["modification"],
+  },
+  {
+    id: "relocation_analysis",
+    label: "Work through a move and any geographic restriction on the children",
+    requires: ["geographicRestrictionExists", "proposedRelocationDestination"],
+    appliesTo: ["modification", "enforcement", "divorce", "sapcr"],
   },
   {
     id: "forms_and_referrals",
@@ -189,6 +199,50 @@ export const FACT_REQUIREMENTS: readonly FactRequirement[] = [
     priority: 8,
   },
   {
+    field: "geographicRestrictionExists",
+    question:
+      "Does your order limit where the children may live — a named county, a school district, or anything like that?",
+    why:
+      "Texas has no relocation statute, so a move is governed by whatever your order " +
+      "actually says. I will not assume the usual wording, because orders differ.",
+    appliesTo: ["modification", "enforcement"],
+    priority: 8,
+  },
+  {
+    field: "geographicRestrictionAreaVerbatim",
+    question:
+      "Copy the restriction out of the order word for word, including any counties it lists. What does it say exactly?",
+    why:
+      "The same proposed move is permitted under one wording and prohibited under another. " +
+      "A paraphrase is not enough to work from.",
+    appliesTo: ["modification", "enforcement"],
+    priority: 9,
+  },
+  {
+    field: "geographicRestrictionAppliesTo",
+    question: "Does that restriction bind only the parent with primary custody, or both parents?",
+    why: "It decides whether the other parent's own move is constrained or free.",
+    appliesTo: ["modification", "enforcement"],
+    priority: 9,
+  },
+  {
+    field: "geographicRestrictionExceptionsVerbatim",
+    question:
+      "Does the order attach any condition that lifts the restriction, such as it ending if the other parent moves away first?",
+    why:
+      "These clauses are common and easy to miss, and one of them can decide the question " +
+      "without any suit at all.",
+    appliesTo: ["modification", "enforcement"],
+    priority: 10,
+  },
+  {
+    field: "proposedRelocationDestination",
+    question: "Where are you proposing to move?",
+    why: "Nothing about a move can be assessed without the destination.",
+    appliesTo: ["modification", "enforcement"],
+    priority: 10,
+  },
+  {
     field: "petitionFiledOn",
     question: "What date was the petition filed?",
     why: "It starts the 60-day divorce waiting period and the court's dismissal clock.",
@@ -204,11 +258,16 @@ export const FACT_REQUIREMENTS: readonly FactRequirement[] = [
   },
 ];
 
+export type CapabilityState = "ready" | "requires_verification" | "blocked";
+
 export interface CapabilityStatus {
   readonly id: CapabilityId;
   readonly label: string;
-  readonly ready: boolean;
+  readonly state: CapabilityState;
+  /** Facts still needed. Empty unless `state` is `blocked`. */
   readonly missing: readonly string[];
+  /** Reference data this capability rests on, when any of it is unconfirmed. */
+  readonly verification?: readonly Provenance[];
 }
 
 export interface Assessment {
@@ -217,6 +276,11 @@ export interface Assessment {
   /** Ordered: ask the first one next. */
   readonly openQuestions: readonly FactRequirement[];
   readonly ready: readonly CapabilityStatus[];
+  /**
+   * Has every fact it needs, but rests on reference data this package could not
+   * confirm. The agent must say so before giving a number from it.
+   */
+  readonly requiresVerification: readonly CapabilityStatus[];
   readonly blocked: readonly CapabilityStatus[];
   readonly suggestedNextQuestion?: string;
 }
@@ -239,17 +303,32 @@ function relevant(
   return appliesTo.includes(matterType);
 }
 
+/**
+ * Reference data each capability depends on. A capability whose data is
+ * unconfirmed cannot report `ready`, however complete the case file is.
+ */
+function dependenciesOf(spec: CapabilitySpec): readonly Provenance[] {
+  if (spec.id !== "child_support") return [];
+  return [capFor(parseIsoDate(today())).provenance];
+}
+
 function statusFor(spec: CapabilitySpec, caseFile: CaseFile): CapabilityStatus {
   const missing = spec.requires.filter((field) => !isKnown(caseFile, field));
   const anyOf = spec.requiresAnyOf;
   if (anyOf !== undefined && !anyOf.some((field) => isKnown(caseFile, field))) {
     missing.push(...anyOf);
   }
+
+  const unconfirmed = dependenciesOf(spec).filter(needsVerification);
+  const state: CapabilityState =
+    missing.length > 0 ? "blocked" : unconfirmed.length > 0 ? "requires_verification" : "ready";
+
   return {
     id: spec.id,
     label: spec.label,
-    ready: missing.length === 0,
-    missing: [...new Set(missing)],
+    state,
+    missing: state === "blocked" ? [...new Set(missing)] : [],
+    ...(unconfirmed.length > 0 ? { verification: unconfirmed } : {}),
   };
 }
 
@@ -280,8 +359,9 @@ export function assessCaseFile(caseFile: CaseFile): Assessment {
     ),
     completeness,
     openQuestions,
-    ready: statuses.filter((s) => s.ready),
-    blocked: statuses.filter((s) => !s.ready),
+    ready: statuses.filter((s) => s.state === "ready"),
+    requiresVerification: statuses.filter((s) => s.state === "requires_verification"),
+    blocked: statuses.filter((s) => s.state === "blocked"),
     ...(next === undefined ? {} : { suggestedNextQuestion: next.question }),
   };
 }
@@ -329,8 +409,13 @@ export function describeSelf(): SelfDescription {
       },
     ],
     knownLimits: [
-      "The child support cap is a dated table. The inflation adjustment due September 1, " +
-        "2025 is unverified here, so I carry the prior figure forward and flag it every time.",
+      "The child support cap is a dated table carrying a verification status. The " +
+        "inflation adjustment due September 1, 2025 is marked unverified, so every " +
+        "support calculation reports 'requires verification' rather than 'ready' until " +
+        "the current figure is confirmed with the Attorney General. That downgrade is " +
+        "automatic; it does not depend on me remembering to mention it.",
+      "Geographic restrictions are order-specific. I will not assume a standard Texas " +
+        "restriction, and I cannot decide whether a move complies with yours.",
       "Possession dates tied to school dismissal are placeholders. Three districts serve " +
         "Spring and their calendars differ.",
       "I do not compute net resources from gross pay. That needs tax facts I do not collect.",

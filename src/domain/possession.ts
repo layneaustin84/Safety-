@@ -16,6 +16,7 @@ import {
   addDays,
   compareDates,
   fridayOrdinalInMonth,
+  fromDate,
   nextWeekday,
   nthWeekdayOfMonth,
   parseIsoDate,
@@ -26,8 +27,23 @@ import {
 /** Which parent a possession period belongs to. */
 export type Parent = "possessory" | "custodial";
 
+/**
+ * Precedence tiers. A period only ever yields to a strictly higher tier, which
+ * is how the statute layers the schedule: holiday possession supersedes both
+ * summer and the ordinary weekends, and extended summer possession supersedes
+ * the ordinary weekend and Thursday periods (Tex. Fam. Code §§ 153.315-153.316).
+ */
+export const PRECEDENCE = {
+  regular: 1,
+  summer: 2,
+  holiday: 3,
+} as const;
+
+export type Precedence = (typeof PRECEDENCE)[keyof typeof PRECEDENCE];
+
 export interface PossessionPeriod {
   readonly label: string;
+  readonly precedence: Precedence;
   readonly parent: Parent;
   readonly start: IsoDate;
   /** Wall-clock start in the court's locale, 24-hour. */
@@ -54,9 +70,19 @@ export interface PossessionOptions {
   readonly schoolYear?: { readonly firstDay: IsoDate; readonly lastDay: IsoDate };
 }
 
+/** A period removed or shortened because a higher-precedence period covers it. */
+export interface SupersededPeriod {
+  readonly period: PossessionPeriod;
+  readonly supersededBy: string;
+  readonly outcome: "removed" | "shortened";
+}
+
 export interface PossessionSchedule {
   readonly scheduleType: "standard" | "long-distance";
+  /** Conflict-free. No two periods here overlap. */
   readonly periods: readonly PossessionPeriod[];
+  /** What the precedence rules removed or trimmed, and why. */
+  readonly superseded: readonly SupersededPeriod[];
   readonly statutoryBasis: readonly string[];
   readonly caveats: readonly string[];
 }
@@ -107,6 +133,7 @@ function weekendPeriods(
     if (!WEEKEND_ORDINALS.has(fridayOrdinalInMonth(day))) continue;
     periods.push({
       label: `${ordinalLabel(fridayOrdinalInMonth(day))} weekend`,
+      precedence: PRECEDENCE.regular,
       parent: "possessory",
       start: day,
       startTime: expanded ? "15:30" : "18:00",
@@ -140,6 +167,7 @@ function thursdayPeriods(
     if (!inSchoolYear(day, options)) continue;
     periods.push({
       label: "Thursday during the school term",
+      precedence: PRECEDENCE.regular,
       parent: "possessory",
       start: day,
       startTime: expanded ? "15:30" : "18:00",
@@ -175,6 +203,7 @@ function holidayPeriods(year: number, options: PossessionOptions): PossessionPer
   if (thanksgiving !== undefined) {
     periods.push({
       label: "Thanksgiving",
+      precedence: PRECEDENCE.holiday,
       parent: odd ? "possessory" : "custodial",
       start: addDays(thanksgiving, -1),
       startTime: "15:30",
@@ -190,6 +219,7 @@ function holidayPeriods(year: number, options: PossessionOptions): PossessionPer
 
   periods.push({
     label: "Christmas, first half",
+    precedence: PRECEDENCE.holiday,
     parent: odd ? "possessory" : "custodial",
     start: parseIsoDate(`${year}-12-18`),
     startTime: "15:30",
@@ -204,6 +234,7 @@ function holidayPeriods(year: number, options: PossessionOptions): PossessionPer
 
   periods.push({
     label: "Christmas, second half",
+    precedence: PRECEDENCE.holiday,
     parent: odd ? "custodial" : "possessory",
     start: parseIsoDate(`${year}-12-28`),
     startTime: "12:00",
@@ -216,6 +247,7 @@ function holidayPeriods(year: number, options: PossessionOptions): PossessionPer
 
   periods.push({
     label: "Spring break",
+    precedence: PRECEDENCE.holiday,
     parent: longDistance || year % 2 === 0 ? "possessory" : "custodial",
     start: parseIsoDate(`${year}-03-09`),
     startTime: "15:30",
@@ -237,6 +269,7 @@ function holidayPeriods(year: number, options: PossessionOptions): PossessionPer
     if (mothersDay !== undefined) {
       periods.push({
         label: "Mother's Day weekend",
+        precedence: PRECEDENCE.holiday,
         parent: role === "mother" ? "possessory" : "custodial",
         start: addDays(mothersDay, -2),
         startTime: "18:00",
@@ -249,6 +282,7 @@ function holidayPeriods(year: number, options: PossessionOptions): PossessionPer
     if (fathersDay !== undefined) {
       periods.push({
         label: "Father's Day weekend",
+        precedence: PRECEDENCE.holiday,
         parent: role === "father" ? "possessory" : "custodial",
         start: addDays(fathersDay, -2),
         startTime: "18:00",
@@ -268,6 +302,7 @@ function summerPeriod(year: number, options: PossessionOptions): PossessionPerio
   return longDistance
     ? {
         label: "Extended summer possession (42 days)",
+        precedence: PRECEDENCE.summer,
         parent: "possessory",
         start: parseIsoDate(`${year}-06-15`),
         startTime: "18:00",
@@ -282,6 +317,7 @@ function summerPeriod(year: number, options: PossessionOptions): PossessionPerio
       }
     : {
         label: "Extended summer possession (30 days)",
+        precedence: PRECEDENCE.summer,
         parent: "possessory",
         start: parseIsoDate(`${year}-07-01`),
         startTime: "18:00",
@@ -294,6 +330,100 @@ function summerPeriod(year: number, options: PossessionOptions): PossessionPerio
           "notice the possessory conservator may instead designate 30 days in up to " +
           "two periods of at least seven days each.",
       };
+}
+
+/** Wall-clock instant as minutes from the epoch, for interval arithmetic. */
+function instant(date: IsoDate, time: string): number {
+  const [hours, minutes] = time.split(":").map(Number) as [number, number];
+  return Math.round(toDate(date).getTime() / 60_000) + hours * 60 + minutes;
+}
+
+function fromInstant(value: number): { date: IsoDate; time: string } {
+  const dayStart = Math.floor(value / 1440) * 1440;
+  const minutesIntoDay = value - dayStart;
+  const date = fromDate(new Date(dayStart * 60_000));
+  const hours = String(Math.floor(minutesIntoDay / 60)).padStart(2, "0");
+  const minutes = String(minutesIntoDay % 60).padStart(2, "0");
+  return { date, time: `${hours}:${minutes}` };
+}
+
+function startOf(period: PossessionPeriod): number {
+  return instant(period.start, period.startTime);
+}
+
+function endOf(period: PossessionPeriod): number {
+  return instant(period.end, period.endTime);
+}
+
+/**
+ * Applies the statutory precedence rules so the calendar never shows two
+ * conflicting periods for the same hours.
+ *
+ * Holiday and extended summer possession are exceptions to the ordinary
+ * schedule, not parallel schedules running beside it. A weekend that falls
+ * inside a summer period is not a second possession period; it simply does not
+ * happen, because the possessory conservator already has the child. Emitting
+ * both was the bug this replaces.
+ */
+function resolvePrecedence(periods: readonly PossessionPeriod[]): {
+  kept: PossessionPeriod[];
+  superseded: SupersededPeriod[];
+} {
+  const byPrecedence = [...periods].sort(
+    (a, b) => b.precedence - a.precedence || startOf(a) - startOf(b),
+  );
+
+  const kept: PossessionPeriod[] = [];
+  const superseded: SupersededPeriod[] = [];
+
+  for (const candidate of byPrecedence) {
+    const overriders = kept.filter(
+      (existing) =>
+        existing.precedence > candidate.precedence &&
+        startOf(existing) < endOf(candidate) &&
+        endOf(existing) > startOf(candidate),
+    );
+
+    if (overriders.length === 0) {
+      kept.push(candidate);
+      continue;
+    }
+
+    let start = startOf(candidate);
+    let end = endOf(candidate);
+    for (const overrider of overriders) {
+      const overriderStart = startOf(overrider);
+      const overriderEnd = endOf(overrider);
+      if (overriderStart <= start && overriderEnd >= end) {
+        start = end; // Fully covered.
+        break;
+      }
+      if (overriderStart <= start) start = Math.max(start, overriderEnd);
+      else end = Math.min(end, overriderStart);
+    }
+
+    const reason = overriders.map((o) => o.label).join(", ");
+    if (start >= end) {
+      superseded.push({ period: candidate, supersededBy: reason, outcome: "removed" });
+      continue;
+    }
+
+    const from = fromInstant(start);
+    const to = fromInstant(end);
+    const shortened: PossessionPeriod = {
+      ...candidate,
+      start: from.date,
+      startTime: from.time,
+      end: to.date,
+      endTime: to.time,
+      note: `${candidate.note === undefined ? "" : `${candidate.note} `}Shortened by ${reason}.`,
+    };
+    kept.push(shortened);
+    superseded.push({ period: candidate, supersededBy: reason, outcome: "shortened" });
+  }
+
+  kept.sort((a, b) => startOf(a) - startOf(b));
+  return { kept, superseded };
 }
 
 /** Builds the possession calendar for a date range. */
@@ -319,6 +449,7 @@ export function generatePossessionSchedule(
         if (compareDates(friday, from) < 0 || compareDates(friday, to) > 0) continue;
         periods.push({
           label: "Monthly weekend (long-distance election)",
+          precedence: PRECEDENCE.regular,
           parent: "possessory",
           start: friday,
           startTime: "18:00",
@@ -342,19 +473,32 @@ export function generatePossessionSchedule(
     periods.push(summerPeriod(year, options));
   }
 
-  const inRange = periods
-    .filter((p) => compareDates(p.end, from) >= 0 && compareDates(p.start, to) <= 0)
-    .sort((a, b) => compareDates(a.start, b.start));
+  const inRange = periods.filter(
+    (p) => compareDates(p.end, from) >= 0 && compareDates(p.start, to) <= 0,
+  );
+  const { kept, superseded } = resolvePrecedence(inRange);
 
   return {
     scheduleType: longDistance ? "long-distance" : "standard",
-    periods: inRange,
+    periods: kept,
+    superseded,
     statutoryBasis: longDistance
-      ? ["Tex. Fam. Code § 153.313", "Tex. Fam. Code § 153.314"]
-      : ["Tex. Fam. Code § 153.312", "Tex. Fam. Code § 153.314", "Tex. Fam. Code § 153.3171"],
+      ? ["Tex. Fam. Code § 153.313", "Tex. Fam. Code § 153.314", "Tex. Fam. Code § 153.315"]
+      : [
+          "Tex. Fam. Code § 153.312",
+          "Tex. Fam. Code § 153.314",
+          "Tex. Fam. Code § 153.315",
+          "Tex. Fam. Code § 153.3171",
+        ],
     caveats: [
-      "Holiday possession overrides the regular weekend and Thursday periods " +
-        "when they conflict (§ 153.315).",
+      "Holiday possession supersedes both summer and the ordinary weekend and " +
+        "Thursday periods; extended summer possession supersedes the ordinary " +
+        "weekends and Thursdays it covers (§§ 153.315-153.316). Periods removed " +
+        "or shortened by that rule are listed separately rather than dropped silently.",
+      "During the possessory conservator's extended summer possession, the managing " +
+        "conservator may designate one weekend of their own with timely written " +
+        "notice (§ 153.312(b)(3)). That election is not generated here because it " +
+        "depends on a notice this package cannot see.",
       "Dates tied to school dismissal or resumption are placeholders. Confirm " +
         "them against the child's district calendar (Spring ISD, Klein ISD, or " +
         "Conroe ISD in the Spring area).",

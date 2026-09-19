@@ -178,6 +178,46 @@ export const STATUTES: readonly StatuteEntry[] = [
       "to base child support, allocating the cost of coverage between the parents.",
   },
   {
+    citation: "Tex. Fam. Code § 153.134(b)(1)",
+    title: "Geographic restriction on the child's primary residence",
+    topics: [
+      "geographic restriction",
+      "residency restriction",
+      "primary residence",
+      "relocation",
+      "move",
+      "moving",
+      "county",
+    ],
+    summary:
+      "A joint managing conservatorship order must either establish a geographic area within " +
+      "which the conservator must maintain the child's primary residence, or state that that " +
+      "conservator may determine the residence without regard to geographic location. The " +
+      "area chosen varies from order to order: a single county, a county plus contiguous " +
+      "counties, a school district, or the state. The order's own words control.",
+  },
+  {
+    citation: "Lenz v. Lenz, 79 S.W.3d 10 (Tex. 2002)",
+    title: "Relocation: the governing factors",
+    topics: ["relocation", "move", "moving", "out of state", "geographic restriction", "custody"],
+    summary:
+      "Texas has no relocation statute. A move is litigated as a modification, and the court " +
+      "weighs the reasons for and against it, the effect on the other parent's relationship " +
+      "with the child, whether the move improves the family's circumstances, the child's " +
+      "own needs, and whether the possession schedule can be adjusted to preserve the " +
+      "relationship. Best interest under § 153.002 remains the controlling standard.",
+  },
+  {
+    citation: "Tex. Fam. Code § 156.006",
+    title: "Temporary orders during a modification suit",
+    topics: ["modification", "temporary orders", "primary residence", "relocation"],
+    summary:
+      "A temporary order changing the person with the exclusive right to designate the " +
+      "child's primary residence while a modification is pending is available only on a " +
+      "narrow showing, such as that the child's present circumstances would significantly " +
+      "impair their physical health or emotional development.",
+  },
+  {
     citation: "Tex. Fam. Code § 156.101",
     title: "Modification of conservatorship, possession, or access",
     topics: ["modification", "custody", "possession", "change in circumstances"],

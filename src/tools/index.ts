@@ -6,6 +6,7 @@ import { COURTS, VERIFIED_AS_OF, venueForZip } from "../data/courts.ts";
 import { FORM_PACKETS, REFERRALS, findFormPackets } from "../data/forms.ts";
 import { searchStatutes } from "../data/statutes.ts";
 import { assessCaseFile, describeSelf } from "../interview.ts";
+import { analyzeGeographicRestriction } from "../domain/relocation.ts";
 import { calculateGuidelineChildSupport } from "../domain/childSupport.ts";
 import { parseIsoDate, today } from "../domain/dates.ts";
 import { computeDeadlines } from "../domain/deadlines.ts";
@@ -242,6 +243,18 @@ export function buildTools(caseFile: CaseFileStore) {
       paternityEstablished: z.boolean().optional(),
       childrenUnderThree: z.boolean().optional(),
       safetyConcernRaised: z.boolean().optional(),
+      geographicRestrictionExists: z.enum(["yes", "no", "unknown"]).optional(),
+      geographicRestrictionAreaVerbatim: z
+        .string()
+        .max(1000)
+        .optional()
+        .describe("The restriction copied from the order word for word. Never paraphrase it."),
+      geographicRestrictionAppliesTo: z
+        .enum(["primary_conservator", "both_parents", "unknown"])
+        .optional(),
+      geographicRestrictionExceptionsVerbatim: z.string().max(1000).optional(),
+      proposedRelocationDestination: z.string().max(200).optional(),
+      seeksToModifyRestriction: z.boolean().optional(),
       note: z.string().max(500).optional().describe("A short free-text fact worth remembering."),
     }),
     run: async (input) => guarded(() => caseFile.update(input)),
@@ -295,6 +308,56 @@ export function buildTools(caseFile: CaseFileStore) {
     run: async () => guarded(() => describeSelf()),
   });
 
+  const relocationTool = betaZodTool({
+    name: "analyze_geographic_restriction",
+    description:
+      "Work through a proposed move against a geographic restriction. Texas has no " +
+      "relocation statute, so the controlling language is whatever the order says. This " +
+      "tool never decides whether a move is permitted; it reports what can be determined, " +
+      "what order language is still needed, and the framework a court applies. Call it " +
+      "whenever a user mentions moving, relocating, or a restriction on where the children " +
+      "may live, and pass the order's exact words when you have them.",
+    inputSchema: z.object({
+      exists: z
+        .enum(["yes", "no", "unknown"])
+        .describe("Whether the order contains a geographic restriction."),
+      areaVerbatim: z
+        .string()
+        .optional()
+        .describe(
+          "The restriction quoted exactly from the order. Leave this out unless the user " +
+            "gave you the actual words. Never supply a typical or assumed restriction.",
+        ),
+      appliesTo: z.enum(["primary_conservator", "both_parents", "unknown"]).optional(),
+      exceptionsVerbatim: z
+        .string()
+        .optional()
+        .describe("Any condition in the order that lifts the restriction, quoted exactly."),
+      proposedDestination: z.string().optional().describe("Where the parent proposes to move."),
+      seeksToModifyRestriction: z
+        .boolean()
+        .optional()
+        .describe("True if the user wants the restriction itself changed or removed."),
+    }),
+    run: async (input) =>
+      guarded(() =>
+        analyzeGeographicRestriction({
+          exists: input.exists,
+          ...(input.areaVerbatim === undefined ? {} : { areaVerbatim: input.areaVerbatim }),
+          ...(input.appliesTo === undefined ? {} : { appliesTo: input.appliesTo }),
+          ...(input.exceptionsVerbatim === undefined
+            ? {}
+            : { exceptionsVerbatim: input.exceptionsVerbatim }),
+          ...(input.proposedDestination === undefined
+            ? {}
+            : { proposedDestination: input.proposedDestination }),
+          ...(input.seeksToModifyRestriction === undefined
+            ? {}
+            : { seeksToModifyRestriction: input.seeksToModifyRestriction }),
+        }),
+      ),
+  });
+
   return [
     assessTool,
     selfTool,
@@ -305,6 +368,7 @@ export function buildTools(caseFile: CaseFileStore) {
     statuteTool,
     formsTool,
     courtDirectoryTool,
+    relocationTool,
     caseFileTool,
     readCaseFileTool,
   ];
