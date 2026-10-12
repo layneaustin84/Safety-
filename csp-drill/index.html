@@ -1,0 +1,1086 @@
+<title>CSP Drill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: single-column phone app shell — sticky header with ANSI Z535 caution stripe, scrolling view, fixed bottom tab bar. Content max 680px. */
+:root {
+  --bg: #eef1f4;
+  --surface: #ffffff;
+  --ink: #15202b;
+  --muted: #586675;
+  --line: #d3dae2;
+  --sign: #f2c200;          /* ANSI safety yellow */
+  --sign-ink: #16181a;
+  --accent: #1f4e79;        /* ANSI safety blue (mandatory action) */
+  --accent-soft: #e2ebf4;
+  --ok: #1b6e41;
+  --ok-bg: #e2f2e8;
+  --bad: #ab2a20;
+  --bad-bg: #fbe8e5;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --radius: 10px;
+  --tabbar-h: 62px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e151c; --surface: #16202a; --ink: #e5eaf0; --muted: #93a2b2; --line: #283543;
+    --sign: #f2c200; --sign-ink: #16181a; --accent: #84b3e2; --accent-soft: #1c2d3f;
+    --ok: #63c98f; --ok-bg: #12301f; --bad: #ff8f84; --bad-bg: #3a1714; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e151c; --surface: #16202a; --ink: #e5eaf0; --muted: #93a2b2; --line: #283543;
+  --sign: #f2c200; --sign-ink: #16181a; --accent: #84b3e2; --accent-soft: #1c2d3f;
+  --ok: #63c98f; --ok-bg: #12301f; --bad: #ff8f84; --bad-bg: #3a1714; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.5;
+  -webkit-tap-highlight-color: transparent;
+}
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* Header */
+.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.top-inner {
+  max-width: 680px; margin: 0 auto; padding: 10px 16px 8px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+}
+.brand { font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; letter-spacing: .02em; text-transform: uppercase; line-height: 1; }
+.brand span { background: var(--sign); color: var(--sign-ink); padding: 0 .25em; margin-left: .15em; }
+.top-sub { color: var(--muted); font-size: .8rem; text-align: right; }
+.stripe { height: 6px; background: repeating-linear-gradient(-45deg, var(--sign) 0 10px, var(--sign-ink) 10px 20px); }
+
+/* Main */
+main { max-width: 680px; margin: 0 auto; padding: 16px 16px calc(var(--tabbar-h) + 28px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 16px; }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; text-transform: uppercase; letter-spacing: .03em; margin: 0; line-height: 1.1; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; text-transform: uppercase; letter-spacing: .04em; margin: 0; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* Domain chips */
+.chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; margin-inline: -16px; padding-inline: 16px; }
+.chip {
+  flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+  padding: 6px 12px; font-size: .85rem; cursor: pointer; white-space: nowrap;
+}
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+/* Status row */
+.status { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: .9rem; color: var(--muted); }
+.status b { color: var(--ink); font-weight: 600; }
+
+/* Question card */
+.qcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 16px; display: grid; gap: 14px; min-width: 0; }
+.tag { display: inline-block; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; color: var(--accent); }
+.qtext { font-size: 1.08rem; font-weight: 500; line-height: 1.45; }
+.opts { display: grid; gap: 10px; }
+.opt {
+  display: grid; grid-template-columns: 32px 1fr; gap: 10px; align-items: start; text-align: left;
+  width: 100%; padding: 12px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--bg);
+  cursor: pointer; min-height: 48px;
+}
+.opt:hover:not(:disabled) { border-color: var(--accent); }
+.opt:disabled { cursor: default; }
+.letter {
+  width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 1rem; border: 1.5px solid var(--line); background: var(--surface);
+}
+.otext { min-width: 0; overflow-wrap: anywhere; padding-top: 2px; }
+.opt.selected { border-color: var(--accent); background: var(--accent-soft); }
+.opt.selected .letter { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+.opt.correct { border-color: var(--ok); background: var(--ok-bg); }
+.opt.correct .letter { background: var(--ok); color: var(--surface); border-color: var(--ok); }
+.opt.wrong { border-color: var(--bad); background: var(--bad-bg); }
+.opt.wrong .letter { background: var(--bad); color: var(--surface); border-color: var(--bad); }
+.explain { border-left: 4px solid var(--ok); background: var(--ok-bg); padding: 10px 12px; border-radius: 0 8px 8px 0; font-size: .95rem; }
+.explain.bad { border-left-color: var(--bad); background: var(--bad-bg); }
+.explain strong { display: block; margin-bottom: 2px; }
+
+/* Buttons */
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn {
+  border: 1.5px solid var(--ink); background: var(--ink); color: var(--bg); border-radius: 8px;
+  padding: 11px 18px; font-weight: 600; cursor: pointer; min-height: 46px;
+}
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn.sign { background: var(--sign); color: var(--sign-ink); border-color: var(--sign); }
+.btn.danger { background: var(--bad); border-color: var(--bad); color: var(--surface); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.grow { flex: 1 1 140px; }
+
+/* Panels */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.seg { display: flex; gap: 8px; flex-wrap: wrap; }
+.seg button { flex: 1 1 70px; padding: 10px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--bg); cursor: pointer; font-weight: 600; }
+.seg button[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+
+/* Exam */
+.timer { font-family: var(--font-mono); font-weight: 500; font-size: 1.05rem; padding: 4px 10px; border-radius: 6px; background: var(--sign); color: var(--sign-ink); }
+.timer.low { background: var(--bad); color: var(--surface); }
+.grid-nav { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 6px; }
+.grid-nav button {
+  height: 38px; border-radius: 6px; border: 1.5px solid var(--line); background: var(--bg); cursor: pointer;
+  font-size: .8rem; font-variant-numeric: tabular-nums; position: relative;
+}
+.grid-nav button.done { background: var(--accent-soft); border-color: var(--accent); }
+.grid-nav button.cur { border-color: var(--ink); border-width: 2.5px; }
+.grid-nav button.flag::after { content: ""; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--sign); box-shadow: 0 0 0 1px var(--sign-ink); }
+.grid-nav button.ok { background: var(--ok-bg); border-color: var(--ok); }
+.grid-nav button.no { background: var(--bad-bg); border-color: var(--bad); }
+
+/* Stats */
+.big { font-family: var(--font-display); font-weight: 700; font-size: 2.6rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; display: grid; gap: 4px; }
+.kpi .big { font-size: 2rem; }
+.kpi .lbl { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.dom-row { display: grid; gap: 6px; }
+.dom-head { display: flex; justify-content: space-between; gap: 10px; font-size: .9rem; }
+.dom-head span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bar { height: 8px; border-radius: 4px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); }
+.bar > i.weak { background: var(--bad); }
+.bar > i.strong { background: var(--ok); }
+
+/* Formulas */
+.fgroup { display: grid; gap: 10px; }
+.formula { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 4px; min-width: 0; }
+.formula:first-of-type { border-top: 0; padding-top: 0; }
+.formula .name { font-weight: 600; }
+.formula code { font-family: var(--font-mono); font-size: .9rem; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; display: block; overflow-x: auto; white-space: pre; }
+.calc { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.calc label { display: grid; gap: 4px; font-size: .8rem; color: var(--muted); }
+.calc input { width: 100%; padding: 9px 10px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--bg); font-family: var(--font-mono); font-size: 1rem; min-width: 0; }
+.out { font-family: var(--font-mono); font-size: 1rem; background: var(--accent-soft); border-radius: 8px; padding: 10px 12px; overflow-wrap: anywhere; }
+details.panel > summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+details.panel > summary::-webkit-details-marker { display: none; }
+details.panel > summary::after { content: "+"; font-family: var(--font-display); font-size: 1.5rem; line-height: 1; color: var(--muted); }
+details.panel[open] > summary::after { content: "–"; }
+
+.note { font-size: .8rem; color: var(--muted); }
+
+/* Tab bar */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
+  background: var(--surface); border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.tabbar-inner { max-width: 680px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); height: var(--tabbar-h); }
+.tab {
+  border: 0; background: transparent; cursor: pointer; display: grid; place-items: center; align-content: center; gap: 2px;
+  font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; color: var(--muted); position: relative;
+}
+.tab svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tab[aria-selected="true"] { color: var(--ink); }
+.tab[aria-selected="true"]::before { content: ""; position: absolute; top: 0; left: 25%; right: 25%; height: 3px; background: var(--sign); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .opt, .btn, .chip { transition: border-color .15s, background-color .15s; }
+  .qcard { animation: rise .18s ease-out; }
+  @keyframes rise { from { transform: translateY(4px); } to { transform: none; } }
+}
+@media (max-width: 380px) { .kpis { grid-template-columns: 1fr 1fr; } }
+</style>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">CSP<span>Drill</span></div>
+    <div class="top-sub" id="topSub">Certified Safety Professional exam prep</div>
+  </div>
+  <div class="stripe" aria-hidden="true"></div>
+</header>
+
+<main id="view" aria-live="polite"></main>
+
+<nav class="tabbar" aria-label="Sections">
+  <div class="tabbar-inner" role="tablist">
+    <button class="tab" role="tab" data-tab="practice" aria-selected="true">
+      <svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/><path d="M9 9.5a3 3 0 0 1 6 .2c0 1.8-3 2.1-3 3.6"/></svg>Practice
+    </button>
+    <button class="tab" role="tab" data-tab="exam" aria-selected="false">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>Exam
+    </button>
+    <button class="tab" role="tab" data-tab="formulas" aria-selected="false">
+      <svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M8 15h2M12 15h2M16 11v4"/></svg>Formulas
+    </button>
+    <button class="tab" role="tab" data-tab="progress" aria-selected="false">
+      <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Progress
+    </button>
+  </div>
+</nav>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ *
+ * Domains follow the published CSP exam blueprint areas. Weights change
+ * between blueprint versions, so none are hard-coded here.
+ * ------------------------------------------------------------------ */
+const DOMAINS = [
+  { k: "math",  n: "Advanced Sciences & Math" },
+  { k: "mgmt",  n: "Safety Management Systems" },
+  { k: "risk",  n: "Risk Management" },
+  { k: "ergo",  n: "Ergonomics" },
+  { k: "fire",  n: "Fire Prevention & Protection" },
+  { k: "erm",   n: "Emergency Response" },
+  { k: "ih",    n: "Industrial Hygiene & Health" },
+  { k: "env",   n: "Environmental Management" },
+  { k: "train", n: "Training & Communication" },
+];
+const DOMAIN_BY = Object.fromEntries(DOMAINS.map(d => [d.k, d]));
+
+/* Question bank: original practice items. a = index of the correct option in o. */
+const BANK = [
+  // ---------------- Advanced Sciences & Math ----------------
+  { id: "m1", d: "math", q: "A facility recorded 12 OSHA-recordable cases over 1,600,000 employee hours. What is its Total Recordable Incident Rate (TRIR)?",
+    o: ["0.75", "1.5", "3.0", "7.5"], a: 1,
+    e: "TRIR = cases × 200,000 ÷ hours = 12 × 200,000 ÷ 1,600,000 = 1.5. The 200,000 constant is 100 full-time workers × 40 h × 50 weeks." },
+  { id: "m2", d: "math", q: "A contractor had 6 days-away/restricted/transfer (DART) cases in 480,000 hours worked. What is the DART rate?",
+    o: ["1.25", "2.5", "5.0", "0.4"], a: 1,
+    e: "DART rate = 6 × 200,000 ÷ 480,000 = 2.5 cases per 100 full-time workers per year." },
+  { id: "m3", d: "math", q: "Two independent machines each produce 90 dB at a worker's position. What is the combined sound pressure level?",
+    o: ["90 dB", "93 dB", "96 dB", "180 dB"], a: 1,
+    e: "L = 10·log₁₀(10^9.0 + 10^9.0) = 90 + 10·log₁₀2 ≈ 93 dB. Two equal sources always add about 3 dB." },
+  { id: "m4", d: "math", q: "Under the OSHA noise standard (90 dBA criterion, 5 dB exchange rate), what is the permissible exposure time at 95 dBA?",
+    o: ["2 hours", "4 hours", "6 hours", "8 hours"], a: 1,
+    e: "T = 8 ÷ 2^((L − 90)/5) = 8 ÷ 2^1 = 4 hours. Each 5 dB increase halves the allowed time." },
+  { id: "m5", d: "math", q: "A worker spends 4 hours at 90 dBA and 4 hours at 95 dBA. What is the OSHA noise dose?",
+    o: ["75%", "100%", "150%", "200%"], a: 2,
+    e: "D = 100 × Σ(C/T) = 100 × (4/8 + 4/4) = 150%. Equivalent 8-h TWA = 16.61·log₁₀(150/100) + 90 ≈ 92.9 dBA." },
+  { id: "m6", d: "math", q: "A point gamma source reads 400 mR/h at 2 m. Ignoring attenuation in air, what is the rate at 4 m?",
+    o: ["200 mR/h", "100 mR/h", "50 mR/h", "25 mR/h"], a: 1,
+    e: "Inverse square law: I₂ = I₁(d₁/d₂)² = 400 × (2/4)² = 100 mR/h. Doubling distance quarters intensity." },
+  { id: "m7", d: "math", q: "Convert 50 ppm toluene (MW 92.14) to mg/m³ at 25 °C and 1 atm.",
+    o: ["13.3 mg/m³", "94 mg/m³", "188 mg/m³", "377 mg/m³"], a: 2,
+    e: "mg/m³ = ppm × MW ÷ 24.45 = 50 × 92.14 ÷ 24.45 ≈ 188 mg/m³. 24.45 L is the molar volume at 25 °C, 760 mmHg." },
+  { id: "m8", d: "math", q: "A worker is exposed to 100 ppm for 3 hours and 20 ppm for 5 hours. What is the 8-hour TWA?",
+    o: ["40 ppm", "50 ppm", "60 ppm", "120 ppm"], a: 1,
+    e: "TWA = Σ(Cᵢ·tᵢ) ÷ 8 = (100×3 + 20×5) ÷ 8 = 400 ÷ 8 = 50 ppm." },
+  { id: "m9", d: "math", q: "Two independent components, each with reliability 0.90, are arranged in series. What is the system reliability?",
+    o: ["0.99", "0.90", "0.81", "0.18"], a: 2,
+    e: "Series: R = R₁ × R₂ = 0.81. Parallel would be 1 − (0.1 × 0.1) = 0.99." },
+  { id: "m10", d: "math", q: "A worker contacts 120 V with an estimated body-path resistance of 1,000 Ω. What current flows and what is the likely effect?",
+    o: ["1.2 mA — perception threshold", "12 mA — near the let-go threshold", "120 mA — ventricular fibrillation possible", "1.2 A — no effect if brief"], a: 2,
+    e: "I = V ÷ R = 120 ÷ 1,000 = 0.12 A = 120 mA. Currents of roughly 100–300 mA through the chest can cause ventricular fibrillation." },
+  { id: "m11", d: "math", q: "A 2,000 lb load is lifted with a two-leg bridle; each leg is 60° from horizontal. What is the tension in each leg?",
+    o: ["1,000 lb", "1,155 lb", "1,414 lb", "2,000 lb"], a: 1,
+    e: "Tension per leg = (W ÷ legs) ÷ sin θ = 1,000 ÷ sin 60° = 1,000 ÷ 0.866 ≈ 1,155 lb. Lower sling angles sharply increase leg tension." },
+  { id: "m12", d: "math", q: "Air moves through a 12-inch round duct at 3,500 fpm. What is the volumetric flow rate?",
+    o: ["≈2,750 cfm", "3,500 cfm", "≈4,460 cfm", "42,000 cfm"], a: 0,
+    e: "Q = V × A. A = π(0.5 ft)² = 0.785 ft². Q = 3,500 × 0.785 ≈ 2,750 cfm." },
+  { id: "m13", d: "math", q: "A machine guarding project costs $60,000 and is expected to save $24,000 per year in losses. What is the simple payback period?",
+    o: ["0.4 years", "1.5 years", "2.5 years", "4.0 years"], a: 2,
+    e: "Payback = investment ÷ annual savings = 60,000 ÷ 24,000 = 2.5 years. It ignores the time value of money." },
+  { id: "m14", d: "math", q: "At constant temperature, 10 L of gas at 1 atm is compressed to 2 atm. What is the new volume?",
+    o: ["2 L", "5 L", "10 L", "20 L"], a: 1,
+    e: "Boyle's law: P₁V₁ = P₂V₂ → V₂ = 1 × 10 ÷ 2 = 5 L." },
+  { id: "m15", d: "math", q: "What is the present value of $100,000 needed 5 years from now at 6% annual interest, compounded annually?",
+    o: ["≈$70,000", "≈$74,700", "≈$94,300", "≈$133,800"], a: 1,
+    e: "P = F ÷ (1 + i)ⁿ = 100,000 ÷ 1.06⁵ = 100,000 ÷ 1.3382 ≈ $74,726." },
+
+  // ---------------- Safety Management Systems ----------------
+  { id: "g1", d: "mgmt", q: "ISO 45001 and ANSI/ASSP Z10.0 are structured around which continual-improvement model?",
+    o: ["DMAIC", "Plan-Do-Check-Act", "ADDIE", "Domino theory"], a: 1,
+    e: "Both OHSMS standards use the Plan-Do-Check-Act cycle. DMAIC is Six Sigma; ADDIE is instructional design." },
+  { id: "g2", d: "mgmt", q: "Under the hierarchy of controls, which option is most effective for a worker exposed to a toxic degreasing solvent?",
+    o: ["Switch to a less toxic solvent", "Eliminate the degreasing step by changing the process", "Install local exhaust ventilation", "Issue organic vapor respirators"], a: 1,
+    e: "Elimination removes the hazard entirely and ranks above substitution, engineering controls, administrative controls, and PPE." },
+  { id: "g3", d: "mgmt", q: "Which is a leading indicator of safety performance?",
+    o: ["TRIR", "Lost workdays", "Percentage of corrective actions closed on time", "Workers' compensation cost"], a: 2,
+    e: "Leading indicators measure activities that prevent harm. TRIR, lost days, and claim costs are lagging outcomes." },
+  { id: "g4", d: "mgmt", q: "Which change most clearly requires a formal Management of Change review under OSHA PSM (29 CFR 1910.119)?",
+    o: ["Replacing a gasket with the identical part number", "Operating a reactor above its documented safe upper temperature limit", "Repainting piping in the same color", "Re-ordering the same catalyst from the same supplier"], a: 1,
+    e: "Changes to process chemicals, technology, equipment, procedures, or safe operating limits require MOC. Replacement in kind does not." },
+  { id: "g5", d: "mgmt", q: "Under OSHA's multi-employer citation policy, a general contractor with authority to require hazards be corrected site-wide is the:",
+    o: ["Creating employer", "Exposing employer", "Correcting employer", "Controlling employer"], a: 3,
+    e: "The controlling employer has general supervisory authority over the worksite, including the power to correct or require correction of hazards." },
+  { id: "g6", d: "mgmt", q: "A fishbone (Ishikawa) diagram is best used to:",
+    o: ["Compute system reliability", "Organize possible causes of a problem into categories", "Rank failure modes by RPN", "Schedule corrective actions"], a: 1,
+    e: "The Ishikawa diagram structures brainstormed causes (e.g., people, methods, machines, materials, environment, measurement)." },
+  { id: "g7", d: "mgmt", q: "James Reason's Swiss cheese model emphasizes that accidents result from:",
+    o: ["A single unsafe act by the injured worker", "Latent conditions and active failures aligning through multiple defensive layers", "A fixed ratio of minor to serious injuries", "Ancestry and social environment"], a: 1,
+    e: "Each defense layer has holes (latent conditions and active failures); an accident occurs when holes align. Ratios and ancestry belong to Heinrich." },
+  { id: "g8", d: "mgmt", q: "Under the BCSP Code of Ethics, a certificant's primary obligation is to:",
+    o: ["Protect the employer's confidential business interests", "Hold paramount the safety and health of people, protection of the environment, and protection of property", "Minimize compliance costs", "Defer to the most senior engineer on technical decisions"], a: 1,
+    e: "The first standard of the BCSP Code of Ethics makes the safety and health of people, the environment, and property paramount." },
+  { id: "g9", d: "mgmt", q: "Which audit arrangement provides the greatest independence and objectivity?",
+    o: ["Self-assessment by the area supervisor", "Audit by a peer department at the same site", "Third-party audit by an accredited external body", "Audit by the safety committee chair"], a: 2,
+    e: "Third-party auditors have no organizational stake in the result, which maximizes independence." },
+  { id: "g10", d: "mgmt", q: "In a safety management system, which element most directly closes the loop between incident findings and future prevention?",
+    o: ["Hazard communication labels", "Corrective and preventive action tracking with verification of effectiveness", "Annual policy signature", "Posting the OSHA 300A"], a: 1,
+    e: "CAPA with effectiveness verification is the 'Act' step: it confirms that fixes worked and feeds improvement." },
+
+  // ---------------- Risk Management ----------------
+  { id: "r1", d: "risk", q: "An FMEA rates a failure mode Severity 8, Occurrence 4, Detection 5. What is its Risk Priority Number?",
+    o: ["17", "40", "160", "320"], a: 2,
+    e: "RPN = S × O × D = 8 × 4 × 5 = 160." },
+  { id: "r2", d: "risk", q: "A loss event is expected 0.2 times per year with an average cost of $500,000. What is the annualized loss expectancy?",
+    o: ["$25,000", "$100,000", "$250,000", "$2,500,000"], a: 1,
+    e: "ALE = frequency × severity = 0.2 × $500,000 = $100,000 per year." },
+  { id: "r3", d: "risk", q: "In a fault tree, independent events A (P = 0.1) and B (P = 0.2) feed an OR gate. What is the probability of the output?",
+    o: ["0.02", "0.28", "0.30", "0.72"], a: 1,
+    e: "OR gate: P = 1 − (1 − 0.1)(1 − 0.2) = 1 − 0.72 = 0.28. The rare-event approximation (0.30) overestimates here." },
+  { id: "r4", d: "risk", q: "Independent events with probabilities 0.01 and 0.02 feed an AND gate. What is the output probability?",
+    o: ["0.0002", "0.002", "0.03", "0.0298"], a: 0,
+    e: "AND gate: P = P(A) × P(B) = 0.01 × 0.02 = 0.0002." },
+  { id: "r5", d: "risk", q: "Which hazard analysis applies guidewords such as NO, MORE, LESS, and REVERSE to process parameters at defined nodes?",
+    o: ["What-if analysis", "HAZOP", "Job hazard analysis", "Event tree analysis"], a: 1,
+    e: "A Hazard and Operability study systematically pairs guidewords with parameters (flow, pressure, temperature) to find deviations." },
+  { id: "r6", d: "risk", q: "Purchasing insurance and using indemnification clauses in contracts are examples of risk:",
+    o: ["Avoidance", "Reduction", "Transfer", "Retention"], a: 2,
+    e: "Transfer shifts the financial consequence to another party. It does not reduce the physical hazard." },
+  { id: "r7", d: "risk", q: "A company's workers' compensation experience modification rate (EMR) is 0.80. This indicates:",
+    o: ["Losses 20% worse than expected; premium surcharge", "Average expected losses; no adjustment", "Losses better than expected for its class and size; premium credit", "The company is self-insured"], a: 2,
+    e: "EMR 1.0 is average. Below 1.0 means actual losses were lower than expected, reducing the premium proportionally." },
+  { id: "r8", d: "risk", q: "Under the ALARP principle, risk should be reduced until:",
+    o: ["It reaches zero", "It meets the minimum regulatory requirement", "The cost of further reduction is grossly disproportionate to the benefit", "Insurance will cover the residual risk"], a: 2,
+    e: "ALARP (as low as reasonably practicable) requires reduction until further measures are grossly disproportionate in cost, time, or effort." },
+  { id: "r9", d: "risk", q: "How does event tree analysis differ from fault tree analysis?",
+    o: ["ETA works backward from a top event to root causes", "ETA works forward from an initiating event through barrier successes and failures to outcomes", "ETA cannot be quantified", "ETA only applies to electrical systems"], a: 1,
+    e: "ETA is inductive (initiating event → outcomes). FTA is deductive (top event → contributing causes)." },
+  { id: "r10", d: "risk", q: "Which is an indirect (uninsured) cost of a workplace injury?",
+    o: ["Hospital bills paid by the insurer", "Indemnity payments for lost wages", "Overtime to cover the injured worker's shifts", "Workers' compensation premium already paid"], a: 2,
+    e: "Indirect costs include lost production, overtime, investigation time, retraining, and equipment damage. Medical and indemnity are direct." },
+  { id: "r11", d: "risk", q: "In a bowtie diagram, barriers on the right side of the top event serve to:",
+    o: ["Prevent threats from causing the top event", "Mitigate consequences after the top event occurs", "Identify root causes", "Calculate RPN"], a: 1,
+    e: "Left side: threats and preventive barriers. Center: top event. Right side: mitigative/recovery barriers and consequences." },
+
+  // ---------------- Ergonomics ----------------
+  { id: "e1", d: "ergo", q: "The load constant (LC) in the revised NIOSH lifting equation is:",
+    o: ["35 lb (16 kg)", "51 lb (23 kg)", "70 lb (32 kg)", "90 lb (41 kg)"], a: 1,
+    e: "LC = 51 lb (23 kg), the maximum recommended weight under ideal conditions. Each multiplier reduces it." },
+  { id: "e2", d: "ergo", q: "A task requires lifting a 40 lb box; the computed Recommended Weight Limit is 20 lb. What is the Lifting Index and what does it mean?",
+    o: ["0.5 — acceptable for nearly all workers", "1.0 — at the limit", "2.0 — elevated risk for many workers; redesign", "20 — the task is prohibited by OSHA"], a: 2,
+    e: "LI = load ÷ RWL = 40 ÷ 20 = 2.0. LI > 1.0 indicates increased risk; NIOSH treats LI above about 3.0 as high risk for most workers." },
+  { id: "e3", d: "ergo", q: "Overhead clearance in a walkway should be designed to accommodate at least the:",
+    o: ["5th percentile female", "50th percentile adult", "95th percentile male", "Average of the workforce"], a: 2,
+    e: "Clearance dimensions use large users (95th percentile male or higher). Reach dimensions use small users (5th percentile female)." },
+  { id: "e4", d: "ergo", q: "Carpal tunnel syndrome results from compression of which nerve?",
+    o: ["Ulnar", "Radial", "Median", "Sciatic"], a: 2,
+    e: "The median nerve passes through the carpal tunnel with the flexor tendons. Ulnar compression at the wrist occurs in Guyon's canal." },
+  { id: "e5", d: "ergo", q: "Outdoors in sunlight: natural wet bulb 25 °C, globe 40 °C, dry bulb 30 °C. What is the WBGT?",
+    o: ["26.5 °C", "28.5 °C", "29.5 °C", "31.5 °C"], a: 1,
+    e: "Outdoor WBGT = 0.7 NWB + 0.2 GT + 0.1 DB = 17.5 + 8.0 + 3.0 = 28.5 °C. Indoor: 0.7 NWB + 0.3 GT." },
+  { id: "e6", d: "ergo", q: "For standing heavy work that requires downward force, the work surface should be approximately:",
+    o: ["5–10 cm above elbow height", "At elbow height", "10–15 cm below elbow height", "15–40 cm below elbow height"], a: 3,
+    e: "Classic guidance: precision work 5–10 cm above elbow, light work 10–15 cm below, heavy work 15–40 cm below elbow height." },
+  { id: "e7", d: "ergo", q: "RULA is primarily used to assess:",
+    o: ["Whole-body vibration", "Upper-limb and neck/trunk postural loading", "Manual lifting limits", "Thermal comfort"], a: 1,
+    e: "Rapid Upper Limb Assessment scores arm, wrist, neck, and trunk postures. REBA covers the whole body; the NIOSH equation covers lifting." },
+  { id: "e8", d: "ergo", q: "Prolonged use of vibrating hand tools is most associated with:",
+    o: ["Raynaud's phenomenon (vibration white finger)", "De Quervain's tenosynovitis only", "Noise-induced hearing loss", "Plantar fasciitis"], a: 0,
+    e: "Hand-arm vibration syndrome includes vascular (Raynaud's), sensorineural, and musculoskeletal effects." },
+
+  // ---------------- Fire Prevention & Protection ----------------
+  { id: "f1", d: "fire", q: "A fire involving cooking oils and fats in a commercial kitchen is which class?",
+    o: ["Class A", "Class B", "Class D", "Class K"], a: 3,
+    e: "Class K covers cooking media. Wet chemical agents saponify the oil and cool it." },
+  { id: "f2", d: "fire", q: "A fire involving magnesium turnings is which class, and what agent applies?",
+    o: ["Class B — foam", "Class C — CO₂", "Class D — dry powder for the specific metal", "Class A — water"], a: 2,
+    e: "Combustible metals are Class D. Water can react violently; use a listed dry powder agent." },
+  { id: "f3", d: "fire", q: "Under NFPA 30, a liquid with a flash point of 50 °F and a boiling point of 180 °F is classified as:",
+    o: ["Class IA", "Class IB", "Class IC", "Class II"], a: 1,
+    e: "Class IA: FP < 73 °F, BP < 100 °F. Class IB: FP < 73 °F, BP ≥ 100 °F. Class IC: FP 73–100 °F. Class II: FP 100–140 °F." },
+  { id: "f4", d: "fire", q: "On an NFPA 704 diamond, the yellow quadrant indicates:",
+    o: ["Health hazard", "Flammability", "Instability/reactivity", "Special hazards"], a: 2,
+    e: "Blue = health, red = flammability, yellow = instability, white = special hazards (e.g., W, OX, SA)." },
+  { id: "f5", d: "fire", q: "Which automatic sprinkler system is appropriate for an unheated warehouse subject to freezing?",
+    o: ["Wet pipe", "Dry pipe", "Deluge with open heads", "Foam-water only"], a: 1,
+    e: "Dry pipe systems hold pressurized air or nitrogen; water enters only after a head opens and the dry valve trips." },
+  { id: "f6", d: "fire", q: "A vapor-air mixture below the lower flammable limit (LFL) is:",
+    o: ["Too rich to burn", "Too lean to burn", "Ideal for combustion", "Explosive only with a catalyst"], a: 1,
+    e: "Below the LFL there is insufficient fuel; above the UFL there is insufficient oxygen." },
+  { id: "f7", d: "fire", q: "Clean agents such as halon replacements extinguish fire primarily by attacking which element of the fire tetrahedron?",
+    o: ["Fuel", "Heat only", "Oxygen only", "The chemical chain reaction"], a: 3,
+    e: "Halogenated and many clean agents interrupt free-radical chain reactions, though some also cool or dilute oxygen." },
+  { id: "f8", d: "fire", q: "Using Le Chatelier's rule, what is the LFL of a vapor mixture that is 50% component A (LFL 2%) and 50% component B (LFL 4%)?",
+    o: ["2.0%", "2.67%", "3.0%", "6.0%"], a: 1,
+    e: "LFLmix = 1 ÷ Σ(yᵢ ÷ LFLᵢ) = 1 ÷ (0.5/2 + 0.5/4) = 1 ÷ 0.375 ≈ 2.67%." },
+  { id: "f9", d: "fire", q: "Flash point is defined as the lowest temperature at which a liquid:",
+    o: ["Ignites without an external source", "Gives off enough vapor to form an ignitable mixture near its surface", "Sustains continuous burning", "Boils at atmospheric pressure"], a: 1,
+    e: "Autoignition requires no ignition source; the fire point is where combustion is sustained." },
+  { id: "f10", d: "fire", q: "Which NFPA code is the primary reference for means of egress and occupant life safety in buildings?",
+    o: ["NFPA 13", "NFPA 70", "NFPA 101", "NFPA 72"], a: 2,
+    e: "NFPA 101 is the Life Safety Code. NFPA 13 = sprinklers, 70 = NEC, 72 = fire alarm." },
+
+  // ---------------- Emergency Response ----------------
+  { id: "x1", d: "erm", q: "Under the Incident Command System, the recommended span of control is:",
+    o: ["1 supervisor to 2 resources", "3 to 7 resources, optimally 5", "10 to 12 resources", "No fixed limit"], a: 1,
+    e: "ICS/NIMS recommends 3–7 subordinates per supervisor, with 5 as optimal." },
+  { id: "x2", d: "erm", q: "At a hazardous materials incident, decontamination takes place in the:",
+    o: ["Hot (exclusion) zone", "Warm (contamination reduction) zone", "Cold (support) zone", "Staging area outside the perimeter"], a: 1,
+    e: "The decon corridor sits in the warm zone between the hot and cold zones." },
+  { id: "x3", d: "erm", q: "EPA/OSHA Level A protection consists of:",
+    o: ["Splash suit with air-purifying respirator", "Fully encapsulating vapor-protective suit with SCBA", "Coveralls and safety glasses", "Splash suit with SCBA"], a: 1,
+    e: "Level A = highest skin and respiratory protection. Level B = SCBA with splash protection. Level C = APR. Level D = work uniform." },
+  { id: "x4", d: "erm", q: "Under HAZWOPER (29 CFR 1910.120(q)), a First Responder at the Awareness Level is trained to:",
+    o: ["Plug and patch leaks", "Recognize the release and initiate the emergency response by notifying the proper authorities", "Enter the hot zone in Level A", "Serve as on-scene incident commander"], a: 1,
+    e: "Awareness-level responders recognize, isolate where trained, and notify. Operations level takes defensive actions; Technicians stop the release." },
+  { id: "x5", d: "erm", q: "Under 29 CFR 1910.38, an employer with 10 or fewer employees may:",
+    o: ["Skip the emergency action plan", "Communicate the emergency action plan orally", "Use only a posted evacuation map", "Rely solely on the fire department"], a: 1,
+    e: "The EAP must be written, kept in the workplace, and available to employees, except employers with 10 or fewer employees may communicate it orally." },
+  { id: "x6", d: "erm", q: "In business continuity planning, the Recovery Time Objective (RTO) is:",
+    o: ["The maximum acceptable data loss measured in time", "The target maximum time to restore a business function after disruption", "The average time between failures", "The time to evacuate a building"], a: 1,
+    e: "RTO is downtime tolerance. RPO (recovery point objective) is the tolerable data-loss window." },
+  { id: "x7", d: "erm", q: "Under START mass-casualty triage, patients able to walk are tagged:",
+    o: ["Red (immediate)", "Yellow (delayed)", "Green (minor)", "Black (expectant)"], a: 2,
+    e: "START directs all ambulatory patients to a collection point as Green, then assesses respirations, perfusion, and mental status for the rest." },
+  { id: "x8", d: "erm", q: "Which ICS position has overall responsibility for incident management and approves the Incident Action Plan?",
+    o: ["Operations Section Chief", "Planning Section Chief", "Incident Commander", "Safety Officer"], a: 2,
+    e: "The Incident Commander holds overall authority. The Safety Officer may stop unsafe acts but does not command the incident." },
+
+  // ---------------- Industrial Hygiene & Occupational Health ----------------
+  { id: "h1", d: "ih", q: "A half-mask air-purifying respirator has an assigned protection factor of 10. The contaminant PEL is 10 ppm. What is the maximum use concentration?",
+    o: ["1 ppm", "10 ppm", "100 ppm", "1,000 ppm"], a: 2,
+    e: "MUC = APF × PEL = 10 × 10 = 100 ppm, and never above the IDLH for an APR." },
+  { id: "h2", d: "ih", q: "OSHA defines an oxygen-deficient atmosphere as one containing less than:",
+    o: ["16.0% O₂", "19.5% O₂", "20.9% O₂", "23.5% O₂"], a: 1,
+    e: "Below 19.5% is oxygen deficient; above 23.5% is oxygen enriched (confined spaces, 1910.146)." },
+  { id: "h3", d: "ih", q: "OSHA's 8-hour PEL for respirable crystalline silica in general industry is:",
+    o: ["25 µg/m³", "50 µg/m³", "100 µg/m³", "5 mg/m³"], a: 1,
+    e: "PEL = 50 µg/m³ 8-h TWA; action level = 25 µg/m³ (29 CFR 1910.1053)." },
+  { id: "h4", d: "ih", q: "A worker is exposed to solvent A at 25 ppm (limit 50 ppm) and solvent B at 40 ppm (limit 100 ppm), both with additive effects. Is the mixture limit exceeded?",
+    o: ["Yes — sum is 1.3", "No — sum is 0.9", "Yes — sum is 65 ppm", "Cannot be determined"], a: 1,
+    e: "Em = C₁/T₁ + C₂/T₂ = 25/50 + 40/100 = 0.9. The limit is exceeded only when Em > 1." },
+  { id: "h5", d: "ih", q: "Which ionizing radiation is stopped by a sheet of paper but is a serious hazard when inhaled or ingested?",
+    o: ["Alpha", "Beta", "Gamma", "Neutron"], a: 0,
+    e: "Alpha particles have very short range in tissue and air, so the hazard is internal deposition." },
+  { id: "h6", d: "ih", q: "A gamma field is reduced by two half-value layers of shielding. What fraction of the original intensity is transmitted?",
+    o: ["50%", "25%", "12.5%", "0%"], a: 1,
+    e: "I = I₀ × (½)ⁿ = (½)² = 25%." },
+  { id: "h7", d: "ih", q: "Local exhaust ventilation is preferred over dilution ventilation when:",
+    o: ["The contaminant has low toxicity and is widely dispersed", "The contaminant is highly toxic and released from a point source", "Heating costs are not a concern", "Emission rates are low and uniform"], a: 1,
+    e: "LEV captures contaminants at the source. Dilution suits low-toxicity, low-volume, dispersed emissions." },
+  { id: "h8", d: "ih", q: "A Short-Term Exposure Limit (STEL) is typically averaged over:",
+    o: ["Instantaneous", "5 minutes", "15 minutes", "30 minutes"], a: 2,
+    e: "STELs are 15-minute TWAs (unless otherwise specified). A ceiling limit is not to be exceeded at any time." },
+  { id: "h9", d: "ih", q: "Airborne asbestos fibers in personal samples are counted by OSHA's reference method using:",
+    o: ["Gravimetric analysis", "Phase contrast microscopy (PCM)", "Gas chromatography", "Atomic absorption"], a: 1,
+    e: "PCM counts fibers >5 µm long with ≥3:1 aspect ratio. TEM is used when fiber identification is needed." },
+  { id: "h10", d: "ih", q: "Under OSHA 1910.134, tight-fitting respirator users must be fit tested:",
+    o: ["Once at hire only", "Before initial use and at least annually", "Every three years", "Only when symptoms occur"], a: 1,
+    e: "Fit testing is required before first use, whenever a different facepiece is used, and at least annually." },
+  { id: "h11", d: "ih", q: "OSHA requires a hearing conservation program when employee exposures equal or exceed:",
+    o: ["80 dBA TWA", "85 dBA TWA (50% dose)", "90 dBA TWA", "115 dBA peak"], a: 1,
+    e: "The action level is an 8-h TWA of 85 dBA (50% dose). The PEL is 90 dBA (100% dose)." },
+  { id: "h12", d: "ih", q: "Work with Mycobacterium tuberculosis cultures typically requires which biosafety level?",
+    o: ["BSL-1", "BSL-2", "BSL-3", "BSL-4"], a: 2,
+    e: "BSL-3 covers indigenous or exotic agents with aerosol transmission that may cause serious disease." },
+
+  // ---------------- Environmental Management ----------------
+  { id: "v1", d: "env", q: "Under RCRA, an aqueous waste is characteristically hazardous for corrosivity if its pH is:",
+    o: ["≤ 4 or ≥ 10", "≤ 2 or ≥ 12.5", "≤ 5 or ≥ 9", "< 7"], a: 1,
+    e: "Corrosivity (D002): aqueous pH ≤ 2 or ≥ 12.5, or corrodes steel above 6.35 mm/year." },
+  { id: "v2", d: "env", q: "Which statute established the Superfund program for cleanup of abandoned hazardous waste sites?",
+    o: ["RCRA", "CERCLA", "TSCA", "Clean Air Act"], a: 1,
+    e: "CERCLA (1980) created Superfund and liability for responsible parties. RCRA governs active waste management." },
+  { id: "v3", d: "env", q: "Under federal RCRA rules, a Large Quantity Generator generates in a calendar month at least:",
+    o: ["100 kg of non-acute hazardous waste", "1,000 kg of non-acute hazardous waste", "10,000 kg of any waste", "1 kg of any waste"], a: 1,
+    e: "LQG: ≥ 1,000 kg/month non-acute (or > 1 kg acute). VSQG: ≤ 100 kg. SQG: between." },
+  { id: "v4", d: "env", q: "A facility needs an SPCC plan under 40 CFR 112 if it could reasonably discharge oil to navigable waters and its aggregate aboveground oil storage capacity exceeds:",
+    o: ["55 gallons", "660 gallons", "1,320 gallons", "42,000 gallons"], a: 2,
+    e: "Threshold: > 1,320 gal aboveground (counting containers ≥ 55 gal) or > 42,000 gal completely buried." },
+  { id: "v5", d: "env", q: "Point-source discharges of pollutants to U.S. waters require a permit under:",
+    o: ["NPDES (Clean Water Act)", "Title V (Clean Air Act)", "EPCRA Section 312", "TSCA Section 5"], a: 0,
+    e: "The National Pollutant Discharge Elimination System is the CWA's permit program for point sources." },
+  { id: "v6", d: "env", q: "EPCRA Section 313 requires certain facilities to report annual releases of listed chemicals through:",
+    o: ["Tier II inventory", "Toxics Release Inventory (TRI)", "Risk Management Plan", "Hazardous waste manifest"], a: 1,
+    e: "Section 313 = TRI (Form R). Sections 311/312 = SDS and Tier II inventory reporting." },
+  { id: "v7", d: "env", q: "The document that tracks hazardous waste from generator to treatment, storage, or disposal facility is the:",
+    o: ["Safety Data Sheet", "Uniform Hazardous Waste Manifest", "Bill of lading only", "Tier II report"], a: 1,
+    e: "The manifest provides RCRA's 'cradle-to-grave' chain of custody." },
+  { id: "v8", d: "env", q: "ISO 14001 specifies requirements for:",
+    o: ["Quality management systems", "Environmental management systems", "Occupational health and safety management systems", "Energy management systems"], a: 1,
+    e: "ISO 9001 = quality, ISO 14001 = environmental, ISO 45001 = OH&S, ISO 50001 = energy." },
+
+  // ---------------- Training, Education & Communication ----------------
+  { id: "t1", d: "train", q: "In Kirkpatrick's four-level model, observing whether workers apply lockout steps correctly on the job measures:",
+    o: ["Level 1 — Reaction", "Level 2 — Learning", "Level 3 — Behavior", "Level 4 — Results"], a: 2,
+    e: "Behavior is transfer to the job. Learning is knowledge or skill gain in training; Results are organizational outcomes." },
+  { id: "t2", d: "train", q: "The first phase of the ADDIE instructional design model is:",
+    o: ["Design", "Analysis", "Development", "Evaluation"], a: 1,
+    e: "Analysis identifies the performance gap, audience, and tasks before any design work." },
+  { id: "t3", d: "train", q: "Which statement reflects Knowles' principles of adult learning (andragogy)?",
+    o: ["Adults learn best through rote memorization", "Adults are problem-centered and need to know why they are learning something", "Adults prefer instructor-directed learning with no input", "Prior experience interferes with adult learning"], a: 1,
+    e: "Andragogy: need to know, self-concept, role of experience, readiness, problem orientation, internal motivation." },
+  { id: "t4", d: "train", q: "Which learning objective is best written?",
+    o: ["Understand lockout/tagout", "Appreciate the importance of energy control", "Given a lockout kit, isolate and verify zero energy on Press 4 with no errors", "Learn about hazardous energy"], a: 2,
+    e: "A good objective states condition, observable behavior, and criterion (ABCD format). 'Understand' and 'appreciate' are not measurable." },
+  { id: "t5", d: "train", q: "The most valid way to verify competency in a hands-on task such as forklift operation is:",
+    o: ["A written multiple-choice test", "Signed attendance roster", "Observed performance evaluation against defined criteria", "Self-assessment survey"], a: 2,
+    e: "Performance-based evaluation directly measures skill (e.g., 1910.178(l) requires an evaluation of the operator's performance)." },
+  { id: "t6", d: "train", q: "OSHA's training standards generally require that training be presented:",
+    o: ["Only in English", "In a manner and language employees can understand", "By a licensed professional engineer", "Online only"], a: 1,
+    e: "OSHA interprets training requirements to mean content must be understood by the trainee, including language and vocabulary." },
+  { id: "t7", d: "train", q: "In the revised Bloom's taxonomy, the highest level of the cognitive domain is:",
+    o: ["Evaluate", "Analyze", "Create", "Apply"], a: 2,
+    e: "Revised order: Remember, Understand, Apply, Analyze, Evaluate, Create." },
+];
+
+/* Formula reference */
+const FORMULAS = [
+  { g: "Rates", items: [
+    ["Incident rate (TRIR, DART)", "Rate = N × 200,000 ÷ hours worked"],
+    ["Severity rate", "SR = days lost × 200,000 ÷ hours worked"],
+  ]},
+  { g: "Noise", items: [
+    ["OSHA allowed time", "T = 8 ÷ 2^((L − 90) / 5)   [h]"],
+    ["Dose", "D = 100 × Σ(Cᵢ ÷ Tᵢ)   [%]"],
+    ["Dose → TWA", "TWA = 16.61 × log₁₀(D ÷ 100) + 90"],
+    ["Adding levels", "Ltot = 10 × log₁₀ Σ 10^(Lᵢ/10)"],
+    ["Distance (free field)", "L₂ = L₁ − 20 × log₁₀(d₂ ÷ d₁)"],
+  ]},
+  { g: "Industrial hygiene", items: [
+    ["ppm ↔ mg/m³ (25 °C, 1 atm)", "mg/m³ = ppm × MW ÷ 24.45"],
+    ["TWA", "TWA = Σ(Cᵢ × tᵢ) ÷ 8"],
+    ["Additive mixture", "Em = C₁/T₁ + C₂/T₂ + … ≤ 1"],
+    ["Max use concentration", "MUC = APF × PEL"],
+    ["Ventilation", "Q = V × A"],
+    ["Velocity pressure (std air)", "V = 4005 × √VP   [fpm, in. w.g.]"],
+    ["Combined gas law", "P₁V₁ ÷ T₁ = P₂V₂ ÷ T₂   [T in K]"],
+  ]},
+  { g: "Radiation", items: [
+    ["Inverse square", "I₂ = I₁ × (d₁ ÷ d₂)²"],
+    ["Half-value layers", "I = I₀ × (½)ⁿ"],
+    ["Radioactive decay", "A = A₀ × e^(−0.693 t ÷ t½)"],
+  ]},
+  { g: "Ergonomics", items: [
+    ["NIOSH RWL", "RWL = 51 × HM × VM × DM × AM × FM × CM   [lb]"],
+    ["Multipliers (US)", "HM = 10/H   VM = 1 − 0.0075|V − 30|\nDM = 0.82 + 1.8/D   AM = 1 − 0.0032A"],
+    ["Lifting index", "LI = load ÷ RWL"],
+    ["WBGT outdoor (sun)", "0.7 NWB + 0.2 GT + 0.1 DB"],
+    ["WBGT indoor", "0.7 NWB + 0.3 GT"],
+  ]},
+  { g: "Risk & reliability", items: [
+    ["Series reliability", "R = R₁ × R₂ × … × Rₙ"],
+    ["Parallel reliability", "R = 1 − Π(1 − Rᵢ)"],
+    ["Fault tree AND", "P = P(A) × P(B)"],
+    ["Fault tree OR", "P = 1 − (1 − P(A))(1 − P(B))"],
+    ["FMEA", "RPN = S × O × D"],
+    ["Annualized loss", "ALE = frequency × severity"],
+  ]},
+  { g: "Fire & electrical", items: [
+    ["Le Chatelier (LFL of mixture)", "LFLmix = 1 ÷ Σ(yᵢ ÷ LFLᵢ)"],
+    ["Ohm's law / power", "V = I × R      P = V × I = I²R"],
+  ]},
+  { g: "Mechanics & economics", items: [
+    ["Sling leg tension", "T = (W ÷ legs) ÷ sin θ   [θ from horizontal]"],
+    ["Present value", "P = F ÷ (1 + i)ⁿ"],
+    ["Simple payback", "years = investment ÷ annual savings"],
+  ]},
+];
+
+/* ------------------------------------------------------------------ *
+ * Persistence (per-device). Every access is guarded: storage can be
+ * blocked, and the app must still work without it.
+ * ------------------------------------------------------------------ */
+const STORE_KEY = "cspdrill.v1";
+function loadStats() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (parsed && typeof parsed === "object" && parsed.q && typeof parsed.q === "object") return parsed;
+  } catch (_) { /* storage unavailable or corrupt */ }
+  return { q: {} };
+}
+let stats = loadStats();
+function saveStats() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(stats)); } catch (_) { /* non-fatal */ }
+}
+function record(id, correct) {
+  const r = stats.q[id] || (stats.q[id] = { n: 0, c: 0, w: false });
+  r.n += 1;
+  if (correct) r.c += 1;
+  r.w = !correct;
+  saveStats();
+}
+function missedIds() {
+  return BANK.filter(q => stats.q[q.id]?.w).map(q => q.id);
+}
+
+/* ------------------------------------------------------------------ *
+ * Helpers
+ * ------------------------------------------------------------------ */
+const BY_ID = Object.fromEntries(BANK.map(q => [q.id, q]));
+const view = document.getElementById("view");
+
+function h(tag, props, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v === null || v === undefined || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k === "text") el.textContent = v;
+    else if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? "" : String(v));
+  }
+  for (const kid of kids.flat()) {
+    if (kid === null || kid === undefined || kid === false) continue;
+    el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  }
+  return el;
+}
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function pool(domain) {
+  return domain === "all" ? BANK : BANK.filter(q => q.d === domain);
+}
+function pct(n, d) { return d ? Math.round((n / d) * 100) : 0; }
+function fmtClock(sec) {
+  const s = Math.max(0, Math.floor(sec));
+  const hh = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
+  const p = n => String(n).padStart(2, "0");
+  return hh ? `${hh}:${p(mm)}:${p(ss)}` : `${p(mm)}:${p(ss)}`;
+}
+const LETTERS = "ABCD";
+
+/** Renders one question. `order` maps display position → original option index. */
+function questionCard(q, order, chosen, reveal, onPick, numberLabel) {
+  const card = h("article", { class: "qcard" },
+    h("div", { class: "status" },
+      h("span", { class: "tag" }, DOMAIN_BY[q.d].n),
+      numberLabel ? h("span", { class: "small num" }, numberLabel) : null),
+    h("p", { class: "qtext" }, q.q));
+  const list = h("div", { class: "opts", role: "group", "aria-label": "Answer choices" });
+  order.forEach((oi, pos) => {
+    let state = "";
+    if (reveal) state = oi === q.a ? "correct" : oi === chosen ? "wrong" : "";
+    else if (oi === chosen) state = "selected";
+    list.append(h("button", {
+      class: `opt ${state}`, type: "button", "aria-pressed": String(oi === chosen),
+      disabled: reveal || !onPick, onclick: onPick ? () => onPick(oi) : null,
+    }, h("span", { class: "letter" }, LETTERS[pos]), h("span", { class: "otext" }, q.o[oi])));
+  });
+  card.append(list);
+  if (reveal) {
+    const ok = chosen === q.a;
+    const correctLetter = LETTERS[order.indexOf(q.a)];
+    const head = chosen === null || chosen === undefined
+      ? `Not answered. Correct answer: ${correctLetter}.`
+      : ok ? "Correct." : `Incorrect. Correct answer: ${correctLetter}.`;
+    card.append(h("div", { class: `explain ${ok ? "" : "bad"}` }, h("strong", {}, head), q.e));
+  }
+  return card;
+}
+
+/* ------------------------------------------------------------------ *
+ * Practice mode
+ * ------------------------------------------------------------------ */
+const practice = { domain: "all", label: "All domains", queue: [], i: 0, order: [], chosen: null, c: 0, n: 0 };
+
+function startPractice(domain, ids, label) {
+  if (domain === "missed") { ids = ids || missedIds(); label = "Missed questions"; }
+  practice.domain = domain;
+  practice.label = label || (domain === "all" ? "All domains" : DOMAIN_BY[domain].n);
+  practice.queue = shuffle(ids || pool(domain).map(q => q.id));
+  practice.i = 0; practice.c = 0; practice.n = 0;
+  loadPracticeCard();
+}
+function loadPracticeCard() {
+  practice.chosen = null;
+  practice.order = shuffle([0, 1, 2, 3]);
+}
+function pickPractice(oi) {
+  if (practice.chosen !== null) return;
+  const q = BY_ID[practice.queue[practice.i]];
+  practice.chosen = oi;
+  practice.n += 1;
+  if (oi === q.a) practice.c += 1;
+  record(q.id, oi === q.a);
+  render();
+}
+function nextPractice() {
+  practice.i += 1;
+  loadPracticeCard();
+  render();
+  window.scrollTo({ top: 0 });
+}
+
+function renderPractice() {
+  const chips = h("div", { class: "chips", role: "group", "aria-label": "Domain filter" },
+    [{ k: "all", n: "All domains" }, ...DOMAINS].map(d =>
+      h("button", {
+        class: "chip", type: "button", "aria-pressed": String(practice.domain === d.k),
+        onclick: () => { startPractice(d.k); render(); },
+      }, d.k === "all" ? `All (${BANK.length})` : `${d.n} (${pool(d.k).length})`)));
+
+  const total = practice.queue.length;
+  if (practice.i >= total) {
+    return [chips, h("section", { class: "panel" },
+      h("h2", {}, "Set complete"),
+      h("p", { class: "big num" }, `${practice.c}/${practice.n}`),
+      h("p", { class: "muted" }, `${practice.label} · ${pct(practice.c, practice.n)}% correct`),
+      h("div", { class: "row" },
+        h("button", { class: "btn grow", type: "button", onclick: () => { startPractice(practice.domain); render(); } }, "Run it again"),
+        missedIds().length
+          ? h("button", { class: "btn ghost grow", type: "button", onclick: () => { startPractice("missed"); render(); } }, `Review missed (${missedIds().length})`)
+          : null))];
+  }
+
+  const q = BY_ID[practice.queue[practice.i]];
+  const answered = practice.chosen !== null;
+  return [
+    chips,
+    h("div", { class: "status" },
+      h("span", {}, h("b", {}, practice.label)),
+      h("span", { class: "num" }, `Session ${practice.c}/${practice.n} correct`)),
+    questionCard(q, practice.order, practice.chosen, answered, answered ? null : pickPractice, `${practice.i + 1} of ${total}`),
+    h("div", { class: "row" },
+      answered
+        ? h("button", { class: "btn grow", type: "button", onclick: nextPractice }, practice.i + 1 < total ? "Next question" : "See results")
+        : h("button", { class: "btn ghost grow", type: "button", onclick: nextPractice }, "Skip")),
+    h("p", { class: "note" }, "Tip: on a keyboard, press 1–4 to answer and Enter for the next question."),
+  ];
+}
+
+/* ------------------------------------------------------------------ *
+ * Exam simulator
+ * CSP pacing: 175 questions in 5.5 hours ≈ 113 s per question.
+ * ------------------------------------------------------------------ */
+const SEC_PER_Q = Math.round((5.5 * 3600) / 175);
+const exam = { phase: "setup", size: 25, domain: "all", ids: [], orders: {}, answers: {}, flags: new Set(), i: 0, endAt: 0, timer: null, result: null };
+
+function startExam() {
+  const ids = shuffle(pool(exam.domain).map(q => q.id)).slice(0, exam.size);
+  exam.ids = ids;
+  exam.orders = Object.fromEntries(ids.map(id => [id, shuffle([0, 1, 2, 3])]));
+  exam.answers = {};
+  exam.flags = new Set();
+  exam.i = 0;
+  exam.endAt = Date.now() + ids.length * SEC_PER_Q * 1000;
+  exam.phase = "running";
+  exam.result = null;
+  clearInterval(exam.timer);
+  exam.timer = setInterval(tickExam, 1000);
+  render();
+}
+function tickExam() {
+  const left = (exam.endAt - Date.now()) / 1000;
+  if (left <= 0) { submitExam(); return; }
+  const el = document.getElementById("examClock");
+  if (el) {
+    el.textContent = fmtClock(left);
+    el.classList.toggle("low", left < 300);
+  }
+}
+function submitExam() {
+  clearInterval(exam.timer);
+  exam.timer = null;
+  const byDomain = {};
+  let correct = 0;
+  for (const id of exam.ids) {
+    const q = BY_ID[id];
+    const chosen = exam.answers[id];
+    const ok = chosen === q.a;
+    if (ok) correct += 1;
+    record(id, ok);
+    const b = byDomain[q.d] || (byDomain[q.d] = { c: 0, n: 0 });
+    b.n += 1; if (ok) b.c += 1;
+  }
+  exam.result = { correct, total: exam.ids.length, byDomain, used: exam.ids.length * SEC_PER_Q - Math.max(0, (exam.endAt - Date.now()) / 1000) };
+  exam.phase = "review";
+  exam.i = 0;
+  render();
+  window.scrollTo({ top: 0 });
+}
+function pickExam(oi) {
+  exam.answers[exam.ids[exam.i]] = oi;
+  render();
+}
+function goExam(i) {
+  exam.i = Math.max(0, Math.min(exam.ids.length - 1, i));
+  render();
+}
+
+const submitConfirm = { armed: false };
+
+function renderExam() {
+  if (exam.phase === "setup") {
+    const avail = pool(exam.domain).length;
+    const sizes = [10, 25, 50].filter(n => n < avail).concat([avail]);
+    if (!sizes.includes(exam.size)) exam.size = sizes[Math.min(1, sizes.length - 1)];
+    return [
+      h("section", { class: "panel" },
+        h("h2", {}, "Timed exam"),
+        h("p", { class: "muted" }, `Answers are hidden until you submit. The clock runs at the real CSP pace: 175 questions in 5.5 hours, about ${Math.round(SEC_PER_Q / 6) / 10} minutes per question.`),
+        h("h3", {}, "Length"),
+        h("div", { class: "seg", role: "group", "aria-label": "Exam length" },
+          sizes.map(n => h("button", { type: "button", "aria-pressed": String(exam.size === n), onclick: () => { exam.size = n; render(); } }, n === avail ? `All ${n}` : String(n)))),
+        h("h3", {}, "Scope"),
+        h("div", { class: "chips", role: "group", "aria-label": "Exam scope" },
+          [{ k: "all", n: "All domains" }, ...DOMAINS].map(d =>
+            h("button", { class: "chip", type: "button", "aria-pressed": String(exam.domain === d.k), onclick: () => { exam.domain = d.k; render(); } }, d.n))),
+        h("div", { class: "status" },
+          h("span", {}, "Time allowed"),
+          h("b", { class: "num" }, fmtClock(exam.size * SEC_PER_Q))),
+        h("button", { class: "btn sign", type: "button", onclick: startExam }, "Start exam")),
+    ];
+  }
+
+  const id = exam.ids[exam.i];
+  const q = BY_ID[id];
+  const reviewing = exam.phase === "review";
+
+  const nav = h("div", { class: "grid-nav", role: "group", "aria-label": "Question navigator" },
+    exam.ids.map((qid, idx) => {
+      const cls = [];
+      if (reviewing) cls.push(exam.answers[qid] === BY_ID[qid].a ? "ok" : "no");
+      else if (exam.answers[qid] !== undefined) cls.push("done");
+      if (exam.flags.has(qid)) cls.push("flag");
+      if (idx === exam.i) cls.push("cur");
+      return h("button", { type: "button", class: cls.join(" "), "aria-label": `Question ${idx + 1}`, onclick: () => goExam(idx) }, idx + 1);
+    }));
+
+  const out = [];
+  if (reviewing) {
+    const r = exam.result;
+    out.push(h("section", { class: "panel" },
+      h("h2", {}, "Exam results"),
+      h("div", { class: "status" },
+        h("span", { class: "big num" }, `${pct(r.correct, r.total)}%`),
+        h("span", { class: "num" }, `${r.correct} of ${r.total} correct · ${fmtClock(r.used)} used`)),
+      ...DOMAINS.filter(d => r.byDomain[d.k]).map(d => domainBar(d.n, r.byDomain[d.k].c, r.byDomain[d.k].n)),
+      h("div", { class: "row" },
+        h("button", { class: "btn grow", type: "button", onclick: () => { exam.phase = "setup"; render(); } }, "New exam")),
+      h("p", { class: "note" }, "Tap any number below to review that question with its explanation.")));
+  } else {
+    const answeredCount = exam.ids.filter(x => exam.answers[x] !== undefined).length;
+    out.push(h("div", { class: "status" },
+      h("span", { class: "num" }, `${answeredCount}/${exam.ids.length} answered`),
+      h("span", { class: "timer num", id: "examClock" }, fmtClock((exam.endAt - Date.now()) / 1000))));
+  }
+
+  out.push(questionCard(q, exam.orders[id], exam.answers[id] ?? null, reviewing, reviewing ? null : pickExam, `${exam.i + 1} of ${exam.ids.length}`));
+  out.push(h("div", { class: "row" },
+    h("button", { class: "btn ghost", type: "button", disabled: exam.i === 0, onclick: () => goExam(exam.i - 1) }, "Back"),
+    reviewing ? null : h("button", {
+      class: "btn ghost", type: "button", "aria-pressed": String(exam.flags.has(id)),
+      onclick: () => { exam.flags.has(id) ? exam.flags.delete(id) : exam.flags.add(id); render(); },
+    }, exam.flags.has(id) ? "Unflag" : "Flag"),
+    h("button", { class: "btn grow", type: "button", disabled: exam.i === exam.ids.length - 1, onclick: () => goExam(exam.i + 1) }, "Next")));
+  out.push(h("section", { class: "panel" }, h("h3", {}, reviewing ? "Review" : "Navigator"), nav));
+
+  if (!reviewing) {
+    const unanswered = exam.ids.filter(x => exam.answers[x] === undefined).length;
+    out.push(submitConfirm.armed
+      ? h("section", { class: "panel" },
+          h("p", {}, unanswered ? `${unanswered} question${unanswered === 1 ? "" : "s"} unanswered. Unanswered questions score as wrong.` : "All questions answered."),
+          h("div", { class: "row" },
+            h("button", { class: "btn danger grow", type: "button", onclick: () => { submitConfirm.armed = false; submitExam(); } }, "Submit now"),
+            h("button", { class: "btn ghost grow", type: "button", onclick: () => { submitConfirm.armed = false; render(); } }, "Keep working")))
+      : h("button", { class: "btn sign", type: "button", onclick: () => { submitConfirm.armed = true; render(); } }, "Submit exam"));
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------ *
+ * Formulas + calculators
+ * ------------------------------------------------------------------ */
+function num(id) {
+  const el = document.getElementById(id);
+  const v = el ? parseFloat(el.value) : NaN;
+  return Number.isFinite(v) ? v : NaN;
+}
+function fmt(n, d = 2) {
+  return Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: d }) : "—";
+}
+function field(id, label, value, step = "any") {
+  return h("label", { for: id }, label, h("input", { id, type: "number", inputmode: "decimal", step, value, oninput: updateCalcs }));
+}
+function updateCalcs() {
+  const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+
+  // Incident rate
+  const cases = num("ir-cases"), hours = num("ir-hours");
+  set("ir-out", hours > 0 ? `Rate = ${fmt((cases * 200000) / hours)} per 100 FTE` : "Enter hours worked");
+
+  // Noise dose (OSHA PEL: 90 dBA criterion, 5 dB exchange, 90 dBA threshold for PEL)
+  let dose = 0, any = false;
+  for (const k of [1, 2, 3]) {
+    const L = num(`nz-l${k}`), t = num(`nz-t${k}`);
+    if (Number.isFinite(L) && Number.isFinite(t) && t > 0) {
+      any = true;
+      if (L >= 90) dose += t / (8 / Math.pow(2, (L - 90) / 5));
+    }
+  }
+  dose *= 100;
+  set("nz-out", !any ? "Enter at least one level and duration"
+    : dose > 0 ? `Dose = ${fmt(dose, 1)}%   TWA = ${fmt(16.61 * Math.log10(dose / 100) + 90, 1)} dBA`
+    : "Dose = 0% (levels below 90 dBA do not count toward the PEL dose)");
+
+  // ppm ↔ mg/m³
+  const ppm = num("cv-ppm"), mw = num("cv-mw");
+  set("cv-out", mw > 0 && Number.isFinite(ppm) ? `${fmt(ppm, 3)} ppm = ${fmt((ppm * mw) / 24.45, 3)} mg/m³` : "Enter ppm and molecular weight");
+
+  // NIOSH lifting equation (US units)
+  const H = num("ni-h"), V = num("ni-v"), D = num("ni-d"), A = num("ni-a"), FM = num("ni-fm"), CM = num("ni-cm"), load = num("ni-load");
+  if ([H, V, D, A, FM, CM, load].every(Number.isFinite)) {
+    const HM = H > 25 ? 0 : 10 / Math.max(H, 10);
+    const VM = V > 70 ? 0 : Math.max(0, 1 - 0.0075 * Math.abs(V - 30));
+    const DM = D > 70 ? 0 : 0.82 + 1.8 / Math.max(D, 10);
+    const AM = A > 135 ? 0 : 1 - 0.0032 * A;
+    const RWL = 51 * HM * VM * DM * AM * FM * CM;
+    set("ni-out", RWL > 0
+      ? `HM ${fmt(HM, 3)} · VM ${fmt(VM, 3)} · DM ${fmt(DM, 3)} · AM ${fmt(AM, 3)}\nRWL = ${fmt(RWL, 1)} lb   LI = ${fmt(load / RWL, 2)}`
+      : "RWL = 0 lb: a factor is outside the equation's limits (H > 25, V > 70, D > 70, or A > 135)");
+  } else {
+    set("ni-out", "Fill in every field");
+  }
+}
+
+function renderFormulas() {
+  const calcs = h("section", { class: "panel" },
+    h("h2", {}, "Calculators"),
+    h("details", { class: "panel", open: true },
+      h("summary", {}, h("h3", {}, "Incident rate")),
+      h("div", { class: "calc" }, field("ir-cases", "Cases", "12"), field("ir-hours", "Hours worked", "1600000")),
+      h("div", { class: "out num", id: "ir-out" })),
+    h("details", { class: "panel" },
+      h("summary", {}, h("h3", {}, "Noise dose (OSHA PEL)")),
+      h("div", { class: "calc" },
+        field("nz-l1", "Level 1 (dBA)", "90"), field("nz-t1", "Hours", "4"),
+        field("nz-l2", "Level 2 (dBA)", "95"), field("nz-t2", "Hours", "4"),
+        field("nz-l3", "Level 3 (dBA)", ""), field("nz-t3", "Hours", "")),
+      h("div", { class: "out num", id: "nz-out" })),
+    h("details", { class: "panel" },
+      h("summary", {}, h("h3", {}, "ppm to mg/m³")),
+      h("div", { class: "calc" }, field("cv-ppm", "Concentration (ppm)", "50"), field("cv-mw", "Molecular weight", "92.14")),
+      h("div", { class: "out num", id: "cv-out" })),
+    h("details", { class: "panel" },
+      h("summary", {}, h("h3", {}, "NIOSH lifting equation")),
+      h("div", { class: "calc" },
+        field("ni-h", "H, horizontal (in)", "15"), field("ni-v", "V, vertical origin (in)", "20"),
+        field("ni-d", "D, travel distance (in)", "30"), field("ni-a", "A, asymmetry (°)", "30"),
+        field("ni-fm", "FM (from table)", "0.85"), field("ni-cm", "CM (from table)", "0.95"),
+        field("ni-load", "Load (lb)", "30")),
+      h("div", { class: "out num", id: "ni-out", style: "white-space: pre-line" }),
+      h("p", { class: "note" }, "FM and CM come from the NIOSH frequency and coupling tables.")));
+
+  const sheet = h("section", { class: "panel" },
+    h("h2", {}, "Formula sheet"),
+    FORMULAS.map(grp => h("div", { class: "fgroup" },
+      h("h3", {}, grp.g),
+      grp.items.map(([name, f]) => h("div", { class: "formula" }, h("span", { class: "name" }, name), h("code", {}, f))))));
+
+  queueMicrotask(updateCalcs);
+  return [calcs, sheet];
+}
+
+/* ------------------------------------------------------------------ *
+ * Progress
+ * ------------------------------------------------------------------ */
+function domainBar(name, c, n) {
+  const p = pct(c, n);
+  const cls = n === 0 ? "" : p < 60 ? "weak" : p >= 80 ? "strong" : "";
+  return h("div", { class: "dom-row" },
+    h("div", { class: "dom-head" }, h("span", {}, name), h("span", {}, n ? `${c}/${n} · ${p}%` : "not started")),
+    h("div", { class: "bar", role: "img", "aria-label": `${name}: ${p}% correct` }, h("i", { class: cls, style: `width:${n ? p : 0}%` })));
+}
+const resetConfirm = { armed: false };
+
+function renderProgress() {
+  let seen = 0, attempts = 0, correct = 0;
+  const per = Object.fromEntries(DOMAINS.map(d => [d.k, { c: 0, n: 0 }]));
+  for (const q of BANK) {
+    const r = stats.q[q.id];
+    if (!r) continue;
+    seen += 1; attempts += r.n; correct += r.c;
+    per[q.d].n += r.n; per[q.d].c += r.c;
+  }
+  const missed = missedIds();
+  const weakest = DOMAINS.filter(d => per[d.k].n > 0).sort((a, b) => pct(per[a.k].c, per[a.k].n) - pct(per[b.k].c, per[b.k].n))[0];
+
+  return [
+    h("div", { class: "kpis" },
+      h("div", { class: "kpi" }, h("span", { class: "lbl" }, "Accuracy"), h("span", { class: "big num" }, attempts ? `${pct(correct, attempts)}%` : "—")),
+      h("div", { class: "kpi" }, h("span", { class: "lbl" }, "Covered"), h("span", { class: "big num" }, `${seen}/${BANK.length}`)),
+      h("div", { class: "kpi" }, h("span", { class: "lbl" }, "To review"), h("span", { class: "big num" }, String(missed.length)))),
+    h("section", { class: "panel" },
+      h("h2", {}, "By domain"),
+      weakest ? h("p", { class: "muted small" }, `Weakest so far: ${weakest.n}.`) : h("p", { class: "muted small" }, "Answer a few questions to see your strengths and gaps."),
+      DOMAINS.map(d => domainBar(d.n, per[d.k].c, per[d.k].n)),
+      h("div", { class: "row" },
+        h("button", {
+          class: "btn grow", type: "button", disabled: !missed.length,
+          onclick: () => { startPractice("missed"); switchTab("practice"); },
+        }, `Review missed (${missed.length})`),
+        weakest ? h("button", { class: "btn ghost grow", type: "button", onclick: () => { startPractice(weakest.k); switchTab("practice"); } }, "Drill weakest domain") : null)),
+    h("section", { class: "panel" },
+      h("h3", {}, "Reset"),
+      h("p", { class: "muted small" }, "Progress is saved in this browser on this device only."),
+      resetConfirm.armed
+        ? h("div", { class: "row" },
+            h("button", { class: "btn danger grow", type: "button", onclick: () => { stats = { q: {} }; saveStats(); resetConfirm.armed = false; render(); } }, "Erase all progress"),
+            h("button", { class: "btn ghost grow", type: "button", onclick: () => { resetConfirm.armed = false; render(); } }, "Cancel"))
+        : h("button", { class: "btn ghost", type: "button", onclick: () => { resetConfirm.armed = true; render(); } }, "Reset progress")),
+    h("p", { class: "note" }, `Independent study aid with ${BANK.length} original practice questions mapped to the CSP exam domains. Not affiliated with or endorsed by BCSP. Confirm current blueprint weights and exam details at bcsp.org.`),
+  ];
+}
+
+/* ------------------------------------------------------------------ *
+ * Shell
+ * ------------------------------------------------------------------ */
+let tab = "practice";
+const SUBTITLES = {
+  practice: "Instant feedback with explanations",
+  exam: "Timed at real CSP pace",
+  formulas: "Reference sheet and calculators",
+  progress: "Your accuracy by domain",
+};
+function switchTab(next) {
+  tab = next;
+  document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+  try { sessionStorage.setItem("cspdrill.tab", tab); } catch (_) { /* non-fatal */ }
+  render();
+  window.scrollTo({ top: 0 });
+}
+function render() {
+  const nodes = tab === "practice" ? renderPractice()
+    : tab === "exam" ? renderExam()
+    : tab === "formulas" ? renderFormulas()
+    : renderProgress();
+  view.replaceChildren(...nodes);
+  document.getElementById("topSub").textContent = SUBTITLES[tab];
+}
+
+document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => switchTab(b.dataset.tab)));
+
+document.addEventListener("keydown", e => {
+  if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
+  const digit = Number(e.key);
+  if (tab === "practice" && practice.i < practice.queue.length) {
+    if (digit >= 1 && digit <= 4 && practice.chosen === null) pickPractice(practice.order[digit - 1]);
+    else if ((e.key === "Enter" || e.key === "ArrowRight") && practice.chosen !== null) { e.preventDefault(); nextPractice(); }
+  } else if (tab === "exam" && exam.phase !== "setup") {
+    if (digit >= 1 && digit <= 4 && exam.phase === "running") pickExam(exam.orders[exam.ids[exam.i]][digit - 1]);
+    else if (e.key === "ArrowRight") goExam(exam.i + 1);
+    else if (e.key === "ArrowLeft") goExam(exam.i - 1);
+  }
+});
+
+try {
+  const saved = sessionStorage.getItem("cspdrill.tab");
+  if (saved && SUBTITLES[saved]) tab = saved;
+} catch (_) { /* non-fatal */ }
+document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
+startPractice("all");
+render();
+</script>
