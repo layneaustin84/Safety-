@@ -13,11 +13,11 @@
  * Bump `version` (semver) and `updated` on every release.
  */
 window.CSP_DATA = {
-  version: "1.1.0",
+  version: "1.2.0",
   updated: "2026-10-13",
   changes: [
-    "Works offline and installs as an app on phone and PC.",
-    "Question bank moved to its own file for weekly updates.",
+    "10 new questions: 2 Ergonomics, 2 Emergency Response, 2 Environmental, 3 Training, 1 Management Systems.",
+    "4 new calculation items: NIOSH RWL, indoor WBGT, effluent mass loading, training score gain.",
   ],
   questions: [
     // ---------------- Advanced Sciences & Math ----------------
@@ -304,5 +304,36 @@ window.CSP_DATA = {
     { id: "t7", d: "train", q: "In the revised Bloom's taxonomy, the highest level of the cognitive domain is:",
       o: ["Evaluate", "Analyze", "Create", "Apply"], a: 2,
       e: "Revised order: Remember, Understand, Apply, Analyze, Evaluate, Create." },
+    // ---------------- Added 2026-10-13 (v1.2.0) ----------------
+    { id: "g11", d: "mgmt", added: "2026-10-13", q: "Under 29 CFR 1904.33, how long must an employer retain the OSHA 300 Log, 300A summary, and 301 incident reports?",
+      o: ["1 year", "3 years", "5 years following the end of the calendar year they cover", "30 years"], a: 2,
+      e: "Recordkeeping forms are kept for 5 years following the end of the calendar year they cover. Thirty years applies to exposure and medical records under 1910.1020." },
+    { id: "e9", d: "ergo", added: "2026-10-13", q: "A lift has H = 20 in, V = 30 in, D = 10 in, no asymmetry, FM = 0.94, and good coupling (CM = 1.0). What is the NIOSH Recommended Weight Limit?",
+      o: ["≈19.7 lb", "≈24.0 lb", "25.5 lb", "≈47.9 lb"], a: 1,
+      e: "HM = 10/20 = 0.50; VM = 1 − 0.0075|30 − 30| = 1.0; DM = 0.82 + 1.8/10 = 1.0; AM = 1.0. RWL = 51 × 0.50 × 1.0 × 1.0 × 1.0 × 0.94 × 1.0 ≈ 24.0 lb." },
+    { id: "e10", d: "ergo", added: "2026-10-13", q: "Indoors with no solar load, natural wet bulb = 24 °C and globe = 36 °C. What is the WBGT?",
+      o: ["26.4 °C", "27.0 °C", "27.6 °C", "30.0 °C"], a: 2,
+      e: "Indoor WBGT = 0.7 NWB + 0.3 GT = 0.7 × 24 + 0.3 × 36 = 16.8 + 10.8 = 27.6 °C. The outdoor formula adds a 0.1 × dry-bulb term and weights globe at 0.2." },
+    { id: "x9", d: "erm", added: "2026-10-13", q: "In the Incident Command System, which section tracks incident costs, time records, and procurement?",
+      o: ["Operations", "Planning", "Logistics", "Finance/Administration"], a: 3,
+      e: "Finance/Administration handles cost, time, procurement, and compensation/claims. Logistics provides resources and services; Planning manages information and the Incident Action Plan." },
+    { id: "x10", d: "erm", added: "2026-10-13", q: "ANSI/ISEA Z358.1 requires an emergency eyewash to deliver tepid flushing fluid for at least how long, and to be reachable within what travel time?",
+      o: ["5 minutes; 30 seconds", "15 minutes; 10 seconds", "15 minutes; 60 seconds", "30 minutes; 10 seconds"], a: 1,
+      e: "Z358.1 specifies a 15-minute continuous flush of tepid fluid, with the unit reachable within about 10 seconds of the hazard on an unobstructed path." },
+    { id: "v9", d: "env", added: "2026-10-13", q: "A plant discharges 2.0 million gallons per day (MGD) of effluent containing 30 mg/L total suspended solids. What is the TSS mass loading?",
+      o: ["60 lb/day", "250 lb/day", "≈500 lb/day", "≈1,000 lb/day"], a: 2,
+      e: "Loading (lb/day) = flow (MGD) × concentration (mg/L) × 8.34 = 2.0 × 30 × 8.34 ≈ 500 lb/day. 8.34 converts mg/L × MGD to lb/day (weight of a gallon of water)." },
+    { id: "v10", d: "env", added: "2026-10-13", q: "Which waste is NOT one of the federal universal waste categories under 40 CFR Part 273?",
+      o: ["Batteries", "Mercury-containing equipment", "Used oil", "Lamps"], a: 2,
+      e: "Federal universal wastes are batteries, pesticides, mercury-containing equipment, lamps, and aerosol cans. Used oil is managed under its own standards in 40 CFR Part 279." },
+    { id: "t8", d: "train", added: "2026-10-13", q: "For long-term retention of safety knowledge, which practice schedule is most effective?",
+      o: ["One long session immediately before it is needed", "Practice spaced out over time with periodic retrieval", "Rereading notes repeatedly in one sitting", "Watching a video once at hire"], a: 1,
+      e: "Spaced (distributed) practice with retrieval produces better long-term retention than massed practice or passive rereading." },
+    { id: "t9", d: "train", added: "2026-10-13", q: "A class averages 60% on a pre-test and 84% on the post-test. What is the relative improvement in the average score?",
+      o: ["24%", "≈28.6%", "40%", "84%"], a: 2,
+      e: "Relative improvement = (post − pre) ÷ pre = (84 − 60) ÷ 60 = 0.40 = 40%. The absolute gain is 24 percentage points." },
+    { id: "t10", d: "train", added: "2026-10-13", q: "Under the GHS format adopted by OSHA's Hazard Communication Standard, which Safety Data Sheet section covers exposure limits and personal protective equipment?",
+      o: ["Section 2", "Section 4", "Section 8", "Section 11"], a: 2,
+      e: "Section 8 is Exposure Controls/Personal Protection (OSHA PELs, ACGIH TLVs, engineering controls, PPE). Section 2 is hazard identification, 4 first aid, 11 toxicological information." },
   ],
 };
