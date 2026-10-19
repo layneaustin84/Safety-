@@ -13,11 +13,12 @@
  * Bump `version` (semver) and `updated` on every release.
  */
 window.CSP_DATA = {
-  version: "1.2.0",
-  updated: "2026-10-13",
+  version: "1.3.0",
+  updated: "2026-10-19",
   changes: [
-    "10 new questions: 2 Ergonomics, 2 Emergency Response, 2 Environmental, 3 Training, 1 Management Systems.",
-    "4 new calculation items: NIOSH RWL, indoor WBGT, effluent mass loading, training score gain.",
+    "10 new questions: 2 each in Ergonomics, Fire, Emergency Response, Environmental, and Training.",
+    "4 new calculation items: NIOSH vertical multiplier, room LFL volume, stair egress capacity, VOC emissions.",
+    "Includes last week's 10 questions (v1.2.0), for 109 total.",
   ],
   questions: [
     // ---------------- Advanced Sciences & Math ----------------
@@ -335,5 +336,36 @@ window.CSP_DATA = {
     { id: "t10", d: "train", added: "2026-10-13", q: "Under the GHS format adopted by OSHA's Hazard Communication Standard, which Safety Data Sheet section covers exposure limits and personal protective equipment?",
       o: ["Section 2", "Section 4", "Section 8", "Section 11"], a: 2,
       e: "Section 8 is Exposure Controls/Personal Protection (OSHA PELs, ACGIH TLVs, engineering controls, PPE). Section 2 is hazard identification, 4 first aid, 11 toxicological information." },
+    // ---------------- Added 2026-10-19 (v1.3.0) ----------------
+    { id: "e11", d: "ergo", added: "2026-10-19", q: "In the revised NIOSH lifting equation, what is the vertical multiplier (VM) for a lift that starts with the hands 70 inches above the floor?",
+      o: ["0.30", "0.70", "0.775", "1.00"], a: 1,
+      e: "VM = 1 − 0.0075 × |V − 30| = 1 − 0.0075 × 40 = 0.70. VM is 1.0 only at knuckle height (30 in) and falls off above and below it; at 0 in it is 0.775." },
+    { id: "e12", d: "ergo", added: "2026-10-19", q: "An adjustable work chair's seat height range should be based mainly on which anthropometric dimension?",
+      o: ["Popliteal height", "Sitting eye height", "Buttock–knee length", "Shoulder breadth"], a: 0,
+      e: "Popliteal height (floor to the underside of the thigh behind the knee) sets seat height so feet rest flat without pressure under the thighs. Buttock-knee length is used for seat depth clearance." },
+    { id: "f11", d: "fire", added: "2026-10-19", q: "A sealed room measures 20 ft × 30 ft × 10 ft. Assuming uniform mixing, how much propane (LFL 2.1% by volume) would bring the room air to its LFL?",
+      o: ["63 ft³", "126 ft³", "1,260 ft³", "12,600 ft³"], a: 1,
+      e: "Room volume = 20 × 30 × 10 = 6,000 ft³. Propane at LFL = 6,000 × 0.021 = 126 ft³. Real releases stratify (propane is heavier than air), so local concentrations can reach the LFL much sooner." },
+    { id: "f12", d: "fire", added: "2026-10-19", q: "Which extinguishing agent should NOT be used on a fire involving energized electrical equipment?",
+      o: ["Carbon dioxide", "Multipurpose dry chemical", "Water stream", "Clean agent (halocarbon)"], a: 2,
+      e: "Water conducts electricity and creates a shock hazard on energized (Class C) equipment. CO₂, dry chemical, and clean agents are nonconductive." },
+    { id: "x11", d: "erm", added: "2026-10-19", q: "Sheltering in place is generally preferred over evacuation when:",
+      o: ["A fire is spreading inside the building", "A toxic gas release outdoors makes travel through outside air more dangerous than staying indoors", "A bomb threat names the building", "The building's structural integrity is in doubt after an earthquake"], a: 1,
+      e: "Shelter-in-place limits exposure to a short-duration outdoor airborne release: close windows, shut down HVAC, and move to an interior room. Internal fire, threats, and structural damage call for evacuation." },
+    { id: "x12", d: "erm", added: "2026-10-19", q: "Using an egress capacity factor of 0.3 in. per person for stairs, how many occupants can a 44-inch-wide stair serve?",
+      o: ["133", "146", "176", "220"], a: 1,
+      e: "Capacity = width ÷ factor = 44 ÷ 0.3 = 146.7, so 146 persons (round down). 220 would result from the 0.2 in./person factor used for level components such as doors and corridors." },
+    { id: "v11", d: "env", added: "2026-10-19", q: "A facility uses 2,000 gallons per year of a coating containing 7.0 lb VOC per gallon, and all VOC is emitted. What are the annual VOC emissions?",
+      o: ["3.5 tons", "7 tons", "14 tons", "28 tons"], a: 1,
+      e: "Emissions = 2,000 gal × 7.0 lb/gal = 14,000 lb ÷ 2,000 lb/ton = 7 tons per year. 14 tons results from forgetting that a short ton is 2,000 lb." },
+    { id: "v12", d: "env", added: "2026-10-19", q: "In states where EPA is the permitting authority, stormwater discharges associated with industrial activity are most commonly covered under:",
+      o: ["A Title V operating permit", "The NPDES Multi-Sector General Permit (MSGP)", "An SPCC plan", "A RCRA Part B permit"], a: 1,
+      e: "Industrial stormwater is regulated under the Clean Water Act NPDES program; EPA's MSGP covers most industrial sectors where EPA issues permits. Title V is air, SPCC is oil spill prevention, and Part B covers hazardous waste TSD facilities." },
+    { id: "t11", d: "train", added: "2026-10-19", q: "In the four-step Job Instruction method, what comes immediately after the instructor presents the operation?",
+      o: ["Prepare the worker", "Try out performance: the learner does the job while the instructor observes and corrects", "Follow up: check back frequently", "Written test on the procedure"], a: 1,
+      e: "Job Instruction steps: 1) prepare the worker, 2) present the operation, 3) try out performance, 4) follow up. Practice with immediate correction is what builds the skill." },
+    { id: "t12", d: "train", added: "2026-10-19", q: "Which design makes a daily toolbox talk most effective?",
+      o: ["A 45-minute lecture on a rotating generic topic", "A short talk tied to that day's tasks and hazards, with workers discussing controls", "Reading the full written program aloud", "Distributing a handout for workers to read later"], a: 1,
+      e: "Toolbox talks work best when brief, specific to current work, and interactive, so workers connect the controls to the job they are about to do." },
   ],
 };
