@@ -10,7 +10,7 @@
  * changes this file's bytes, which is what makes browsers install the new worker and
  * show the "new version" banner.
  */
-const VERSION = "1.1.0";
+const VERSION = "1.3.0";
 const APP_CACHE = `csp-drill-app-${VERSION}`;
 const FONT_CACHE = "csp-drill-fonts-v1";
 const NETWORK_TIMEOUT_MS = 4000;
