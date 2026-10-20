@@ -421,7 +421,7 @@ cmd_dock() {
   ok "Dock saved: $(while IFS= read -r p; do printf '%s, ' "$(app_name "${p}")"; done < <(adbs shell cat "${dest}/dock.txt" | tr -d '\r') | sed 's/, $//')"
   # Restart so the launcher re-reads dock.txt immediately.
   adbs shell am force-stop "${LAUNCHER_PKG}" >/dev/null 2>&1 || true
-  SHOT_DIR="$( [[ -n "$(latest_backup || true)" ]] && echo "$(latest_backup)/screenshots" || echo "${STATE_DIR}/screenshots")"
+  use_backup_shot_dir
   home_and_screenshot dock
 }
 
@@ -453,7 +453,7 @@ cmd_restore() {
 
 cmd_screenshot() {
   require_device
-  SHOT_DIR="$( [[ -n "$(latest_backup || true)" ]] && echo "$(latest_backup)/screenshots" || echo "${STATE_DIR}/screenshots")"
+  use_backup_shot_dir
   screenshot "${1:-manual}"
 }
 

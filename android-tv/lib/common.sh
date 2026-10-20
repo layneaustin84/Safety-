@@ -134,6 +134,12 @@ screenshot() {
   fi
 }
 
+# Point screenshots at the latest backup's folder, or .state/ before any backup exists.
+use_backup_shot_dir() {
+  local b; b="$(latest_backup || true)"
+  if [[ -n "${b}" ]]; then SHOT_DIR="${b}/screenshots"; else SHOT_DIR="${STATE_DIR}/screenshots"; fi
+}
+
 # Go to the home screen and give the launcher time to draw before capturing.
 home_and_screenshot() {
   adbs shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true
