@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Android TV debloat + minimal launcher toolkit. Run ./tv.sh help.
+# shellcheck disable=SC2034  # SHOT_DIR/TV_SERIAL are globals read by lib/common.sh
 set -Eeuo pipefail
 
 # shellcheck source=lib/common.sh
