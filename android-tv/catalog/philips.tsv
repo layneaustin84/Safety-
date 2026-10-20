@@ -1,0 +1,5 @@
+# Philips / TP Vision
+ads	org.droidtv.nettvadvert	Philips Smart TV ad banners
+telemetry	org.droidtv.tvusagedata	TP Vision usage data
+ask	org.droidtv.nettvrecommender	Philips content recommender
+ask	org.droidtv.welcome	Philips welcome/what's-new tips

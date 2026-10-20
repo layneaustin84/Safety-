@@ -42,3 +42,7 @@ UPDATING.md                      release procedure, including the weekly questio
 ```sh
 node scripts/validate-questions.mjs
 ```
+
+## Android TV toolkit
+
+`android-tv/` holds a separate tool: reversible Android TV debloat scripts plus a minimal Apple TV-style launcher. See [`android-tv/README.md`](android-tv/README.md).

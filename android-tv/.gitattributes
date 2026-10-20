@@ -1,0 +1,8 @@
+*.sh       text eol=lf
+gradlew    text eol=lf
+*.bat      text eol=crlf
+*.tsv      text eol=lf
+test/mock-adb text eol=lf
+*.jar      binary
+*.jpg      binary
+*.keystore binary

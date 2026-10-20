@@ -1,0 +1,10 @@
+# Amazon Fire TV (Fire OS). Many Fire OS packages refuse pm disable-user; refusals are logged and skipped.
+telemetry	com.amazon.device.crashmanager	Crash report uploader
+telemetry	com.amazon.client.metrics	Device metrics uploader
+telemetry	com.amazon.client.metrics.api	Device metrics API
+telemetry	com.amazon.device.logmanager	Log uploader
+ads	com.amazon.tv.adservices	Fire TV ad services
+ask	com.amazon.tv.livetv	Live TV integration
+ask	com.amazon.ftv.screensaver	Fire TV screensaver
+ask	com.amazon.vizzini	Alexa voice
+launcher	com.amazon.tv.launcher	Fire TV home (cannot be disabled on most Fire OS versions)

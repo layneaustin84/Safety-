@@ -1,0 +1,9 @@
+# Per-TV data: backups contain your device's package list and settings.
+backups/
+.state/
+dist/
+# Launcher build output
+launcher/.gradle/
+launcher/build/
+launcher/app/build/
+launcher/local.properties

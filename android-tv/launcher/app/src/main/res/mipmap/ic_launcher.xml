@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pre-API 26 icon; API 26+ uses mipmap-anydpi-v26/ic_launcher.xml. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="oval"><solid android:color="#1F3B2E" /></shape>
+    </item>
+    <item android:drawable="@drawable/ic_launcher_fg" />
+</layer-list>

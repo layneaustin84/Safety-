@@ -1,0 +1,27 @@
+# Google TV / Android TV (all brands)
+telemetry	com.google.android.feedback	Google feedback/crash report uploader
+telemetry	com.google.android.tv.bugreportsender	Android TV bug report sender
+telemetry	com.google.android.gms.location.history	Location history uploader (no location on a TV)
+junk	com.android.printspooler	Print spooler (no printing on a TV)
+junk	com.android.providers.partnerbookmarks	OEM partner bookmarks
+junk	com.android.dreams.basic	Basic colour-cycle screensaver
+junk	com.android.wallpaper.livepicker	Live wallpaper picker (TV launchers ignore it)
+junk	com.android.bips	Built-in print service
+ask	com.google.android.marvin.talkback	TalkBack screen reader (keep if you use it)
+ask	com.google.android.tvrecommendations	Android TV Core Services: home-screen recommendation rows of the stock launcher
+ask	com.google.android.katniss	Google Assistant / voice search on the remote mic button
+ask	com.google.android.apps.mediashell	Chromecast built-in (cast from phone)
+ask	com.google.android.youtube.tv	YouTube
+ask	com.google.android.youtube.tvmusic	YouTube Music
+ask	com.google.android.youtube.tvkids	YouTube Kids
+ask	com.google.android.videos	Google TV / Play Movies
+ask	com.google.android.play.games	Google Play Games
+ask	com.google.android.apps.tv.dreamx	Google TV ambient mode (photo/art screensaver)
+ask	com.google.android.backdrop	Android TV Backdrop ambient mode screensaver
+ask	com.google.android.apps.youtube.music	YouTube Music (alt package)
+ask	com.google.android.music	Google Play Music (discontinued service)
+ask	com.google.android.tv	Live Channels app (needed for tuner/antenna TV)
+ask	com.google.android.apps.tv.launcherx.coreservices	Google TV launcher content/sponsored-row service
+launcher	com.google.android.apps.tv.launcherx	Google TV stock home screen (sponsored rows)
+launcher	com.google.android.tvlauncher	Android TV stock home screen
+launcher	com.google.android.leanbacklauncher	Legacy Android TV home screen

@@ -1,0 +1,6 @@
+# NVIDIA Shield TV
+telemetry	com.nvidia.stats	NVIDIA usage statistics
+telemetry	com.nvidia.feedback	NVIDIA feedback uploader
+ask	com.nvidia.tegrazone3	NVIDIA Games
+ask	com.nvidia.ossservice	NVIDIA cloud/OSS service
+ask	com.nvidia.shieldtech.accessoryserver	Shield accessories (controller/remote updates)

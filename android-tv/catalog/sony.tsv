@@ -1,0 +1,10 @@
+# Sony Bravia
+ads	com.sony.dtv.sonyselect	Sony Select promoted-app channel
+ads	com.sony.dtv.promos	Sony promotions
+telemetry	com.sony.dtv.sonydiag	Sony diagnostics upload
+telemetry	com.sony.dtv.recommendationservice	Sony usage-based recommendation service
+ask	com.sony.dtv.bravialifehack	Bravia Life Hack / TV tips
+ask	com.sony.dtv.interactivetvcontents	Interactive TV / HbbTV content
+ask	com.sony.dtv.discovery	Sony "Discover" content rows
+ask	com.sony.dtv.photosharingplus	Photo Sharing Plus
+ask	com.sony.dtv.bravia.core	Bravia Core movie service

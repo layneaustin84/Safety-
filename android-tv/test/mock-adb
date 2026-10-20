@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Stateful fake adb used by test/run.sh. Device state lives in $MOCK_DIR.
+D="${MOCK_DIR:?}"; mkdir -p "$D"; touch "$D/disabled" "$D/settings" "$D/log"
+echo "$*" >>"$D/log"
+[[ "$1" == -s ]] && shift 2
+all="com.google.android.apps.tv.launcherx com.google.android.feedback com.android.printspooler com.google.android.katniss com.netflix.ninja com.google.android.youtube.tv com.google.android.gms com.tcl.guard com.tcl.secretthing com.android.vending"
+[[ -f "$D/installed" ]] && all="$all dev.minimal.tvhome"
+home="$(cat "$D/home" 2>/dev/null || echo com.google.android.apps.tv.launcherx/.MainActivity)"
+case "$1" in
+  devices) printf 'List of devices attached\n10.0.0.5:5555\tdevice\n';;
+  connect) echo "connected to $2";;
+  get-state) echo device;;
+  install) touch "$D/installed"; echo Success;;
+  uninstall) rm -f "$D/installed"; echo Success;;
+  push) echo "1 file pushed";;
+  exec-out) printf '\x89PNG\r\n\x1a\nFAKE';;
+  mdns) ;;
+  shell) shift; case "$1 $2" in
+    "getprop ro.build.version.sdk") echo 31;;
+    "getprop ro.product.model") echo "Fake TV 55";;
+    "getprop "*) echo x;;
+    "getprop") echo "[ro.x]: [1]";;
+    "pm list")
+      case "$3 ${4:-}" in
+        "packages -d") for p in $all; do grep -qx "$p" "$D/disabled" && echo "package:$p"; done;;
+        "packages -e") for p in $all; do grep -qx "$p" "$D/disabled" || echo "package:$p"; done;;
+        *) for p in $all; do echo "package:$p"; done;;
+      esac;;
+    "pm disable-user") echo "$5" >>"$D/disabled"; echo "Package $5 new state: disabled-user";;
+    "pm enable") grep -vx "$5" "$D/disabled" >"$D/d2"; mv "$D/d2" "$D/disabled"; echo "Package $5 new state: enabled";;
+    "settings get") v=$(grep "^$3/$4=" "$D/settings" | tail -1 | cut -d= -f2); echo "${v:-null}";;
+    "settings put") echo "$3/$4=$5" >>"$D/settings";;
+    "settings delete") echo "$3/$4=null" >>"$D/settings";;
+    "settings list") echo "a=b";;
+    "cmd package")
+      case "$3" in
+        resolve-activity) echo "priority=0"; echo "$home";;
+        set-home-activity) echo "$6" >"$D/home"; echo Success;;
+        query-activities) printf '2 activities found:\n  Activity #0:\n    priority=0 x=1\n    com.netflix.ninja/.Main\n    com.google.android.youtube.tv/.Shell\n';;
+      esac;;
+    "dumpsys activity") echo "  mResumedActivity: ActivityRecord{1 u0 $home t1}";;
+    "dumpsys window") echo "nothing";;
+    *) :;;
+  esac;;
+esac
+exit 0

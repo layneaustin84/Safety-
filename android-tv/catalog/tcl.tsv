@@ -1,0 +1,10 @@
+# TCL (Android TV / Google TV)
+ads	com.tcl.waterfall.overseas	TCL Channel/home content feed with promoted rows
+ads	com.tcl.ad	TCL advertising service
+telemetry	com.tcl.xian.StartandroidService	TCL usage reporting service
+telemetry	com.tcl.tvweishi	TCL data collection/"TV guard" service
+junk	com.tcl.guard	TCL "Guard" cleaner/booster (duplicate of system memory management)
+ask	com.tcl.MultiScreenInteraction_TV	T-Cast / screen mirroring receiver
+ask	com.tcl.tvpassport	TCL account/passport
+ask	com.tcl.usercenter	TCL user centre
+ask	com.tcl.notificationcenter	TCL notification centre

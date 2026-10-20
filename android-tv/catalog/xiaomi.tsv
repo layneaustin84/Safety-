@@ -1,0 +1,9 @@
+# Xiaomi Mi TV / Mi Box / TV Stick
+ads	com.xiaomi.mitv.advertise	Xiaomi ad delivery
+ads	com.mitv.tvhome.atv.ads	PatchWall promoted content
+telemetry	com.miui.tv.analytics	Xiaomi analytics
+telemetry	com.xiaomi.mitv.tvdatareport	Xiaomi usage data reporting
+ask	com.mitv.tvhome.atv	PatchWall home (Xiaomi content launcher)
+ask	com.mitv.videoplayer	Xiaomi video player
+ask	com.xiaomi.mitv.calendar	Xiaomi calendar
+ask	com.mitv.screensaver	Xiaomi screensaver

@@ -1,0 +1,6 @@
+# Hisense, Sharp, Skyworth, Toshiba and generic Android TV OEM services
+ads	com.hisense.hiads	Hisense ad service
+telemetry	com.hisense.hitv.datacollect	Hisense data collection
+telemetry	com.skyworth.datacollection	Skyworth data collection
+telemetry	com.toshiba.tvstat	Toshiba usage statistics
+ask	com.sharp.sharpstore	Sharp app store
